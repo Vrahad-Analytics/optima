@@ -71,6 +71,10 @@ class OptimaWriteMetricsSpec extends AnyFunSuite with Matchers with BeforeAndAft
       Seq(("a", 1), ("b", 2), ("c", 3), ("d", 4)).toDF("key", "value")
         .write.mode("overwrite").parquet(tempDir.getAbsolutePath)
 
+      // onSuccess is delivered asynchronously on the shared listener bus; drain it
+      // before asserting so the test doesn't race the callback.
+      spark.sparkContext.listenerBus.waitUntilEmpty()
+
       val qe = capturedQE.get()
       qe should not be null
 
