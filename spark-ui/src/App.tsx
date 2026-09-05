@@ -14,7 +14,7 @@ import {
   IS_HISTORY_SERVER_MODE,
 } from "./utils/UrlConsts";
 
-const DOCUMENT_TITLE_PREFIX = "DataFlint - ";
+const DOCUMENT_TITLE_PREFIX = "Optima - ";
 
 export default function App() {
   const location = useLocation();

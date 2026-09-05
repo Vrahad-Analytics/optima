@@ -32,7 +32,7 @@ interface ResourceUsage {
   coreUsageMs: number;
   coreHour: number;
   memoryHour: number;
-  totalDCU: number;
+  totalOCU: number;
 }
 
 export function calculateStagesStore(
@@ -227,13 +227,13 @@ function calculateSqlQueryResourceUsage(
       const memoryHour = msToHours(
         intersect.intersectTime * intersect.memoryGB,
       );
-      // see documentation about DCU calculation
-      const totalDCU = coreHour * 0.05 + memoryHour * 0.005;
+      // see documentation about OCU calculation
+      const totalOCU = coreHour * 0.05 + memoryHour * 0.005;
       return {
         coreUsageMs,
         coreHour,
         memoryHour,
-        totalDCU,
+        totalOCU,
       };
     })
     .reduce(
@@ -242,14 +242,14 @@ function calculateSqlQueryResourceUsage(
           coreUsageMs: a.coreUsageMs + b.coreUsageMs,
           coreHour: a.coreHour + b.coreHour,
           memoryHour: a.memoryHour + b.memoryHour,
-          totalDCU: a.totalDCU + b.totalDCU,
+          totalOCU: a.totalOCU + b.totalOCU,
         };
       },
       {
         coreUsageMs: 0,
         coreHour: 0,
         memoryHour: 0,
-        totalDCU: 0,
+        totalOCU: 0,
       },
     );
   return intersectTime;
@@ -300,15 +300,15 @@ export function calculateSqlQueryLevelMetricsReducer(
       const resourceUsageStore: SparkSQLResourceUsageStore = {
         coreHourUsage: resourceUsageWithDriver.coreHour,
         memoryGbHourUsage: resourceUsageWithDriver.memoryHour,
-        dcu: resourceUsageWithDriver.totalDCU,
+        ocu: resourceUsageWithDriver.totalOCU,
         idleCoresRate: idleCoresRate,
-        dcuPercentage:
-          statusStore.executors?.totalDCU === undefined
+        ocuPercentage:
+          statusStore.executors?.totalOCU === undefined
             ? 0
             : Math.min(
               100,
-              (resourceUsageWithDriver.totalDCU /
-                statusStore.executors.totalDCU) *
+              (resourceUsageWithDriver.totalOCU /
+                statusStore.executors.totalOCU) *
               100,
             ),
         durationPercentage: calculatePercentage(

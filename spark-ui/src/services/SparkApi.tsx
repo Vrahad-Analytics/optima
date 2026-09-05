@@ -230,7 +230,7 @@ class SparkAPI {
       // Check for HTTP 500 error - Spark SQL endpoint unsupported (only for SQL requests)
       if (isSqlRequest && requestContent.status === 500) {
         const versionInfo = this.sparkVersion ? ` (current version: ${this.sparkVersion})` : "";
-        throw new Error(`Spark SQL endpoint returned error, spark version unsupported${versionInfo}. DataFlint supports Spark 3.3 and up.`);
+        throw new Error(`Spark SQL endpoint returned error, spark version unsupported${versionInfo}. Optima supports Spark 3.3 and up.`);
       }
 
       const responseText = await requestContent.text();

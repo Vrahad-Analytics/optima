@@ -17,8 +17,8 @@ export interface Data {
   description: string;
   duration: number;
   durationPercentage: number;
-  dcu: number;
-  dcuPercentage: number;
+  ocu: number;
+  ocuPercentage: number;
   input: number;
   output: number;
   idleCores: number;

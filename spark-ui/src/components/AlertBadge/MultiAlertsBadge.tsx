@@ -2,11 +2,11 @@ import ErrorIcon from "@mui/icons-material/Error";
 import WarningIcon from "@mui/icons-material/Warning";
 import { Alert, AlertTitle } from "@mui/material";
 import * as React from "react";
-import { Alert as DataflintAlert } from "../../interfaces/AppStore";
+import { Alert as OptimaAlert } from "../../interfaces/AppStore";
 import { TransperantTooltip } from "./AlertBadge";
 
 type ToggableAlertProps = {
-  alerts: DataflintAlert[];
+  alerts: OptimaAlert[];
 };
 
 export default function MultiAlertBadge({ alerts }: ToggableAlertProps) {

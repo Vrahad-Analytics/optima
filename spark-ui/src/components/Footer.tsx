@@ -46,7 +46,7 @@ export default function Footer() {
                 </Typography>
                 <img
                     src="./logo.png"
-                    alt="DataFlint"
+                    alt="Optima"
                     style={{ height: "14px", width: "auto" }}
                 />
             </Box>

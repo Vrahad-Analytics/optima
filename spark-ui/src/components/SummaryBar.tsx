@@ -62,10 +62,10 @@ const SummaryBar: FC = (): JSX.Element => {
   );
   const driverMemoryUsageString = humanFileSize(driverMemoryUsage);
   const driverMaxMemoryString = humanFileSize(driverMaxMemory);
-  const totalDCUFormated =
-    status.executors.totalDCU > 1
-      ? status.executors.totalDCU.toFixed(2)
-      : status.executors.totalDCU.toFixed(4);
+  const totalOCUFormated =
+    status.executors.totalOCU > 1
+      ? status.executors.totalOCU.toFixed(2)
+      : status.executors.totalOCU.toFixed(4);
   return (
     <Grid
       container
@@ -89,21 +89,21 @@ const SummaryBar: FC = (): JSX.Element => {
           icon={AccessTimeIcon}
         ></InfoBox>
         <InfoBox
-          title="DCU"
-          text={totalDCUFormated}
+          title="OCU"
+          text={totalOCUFormated}
           color="#795548"
           icon={HubIcon}
           tooltipContent={
             <React.Fragment>
               <Typography variant="h6" color="inherit">
-                DataFlint Compute Units (DCU)
+                Optima Compute Units (OCU)
               </Typography>
               <Typography variant="subtitle2">
                 Is measurement unit for spark usage, which is a simular concept
                 to DBU (DataBricks Unit)
               </Typography>
               <Typography variant="subtitle2">
-                It's calculated by: {totalDCUFormated} (DCU) =
+                It's calculated by: {totalOCUFormated} (OCU) =
               </Typography>
               <Typography variant="subtitle2">
                 <b>{status.executors.totalCoreHour.toFixed(2)}</b> (core/hour
@@ -112,15 +112,6 @@ const SummaryBar: FC = (): JSX.Element => {
               <Typography variant="subtitle2">
                 <b>{status.executors.totalMemoryGibHour.toFixed(2)}</b> (GiB
                 memory/hour usage) * 0.005 (GiB memory/hour ratio)
-              </Typography>
-              <Typography variant="subtitle2">
-                For more information see{" "}
-                <Link
-                  color="inherit"
-                  href="https://dataflint.gitbook.io/dataflint-for-spark/advanced/dcu-calculation"
-                >
-                  documentation
-                </Link>
               </Typography>
             </React.Fragment>
           }

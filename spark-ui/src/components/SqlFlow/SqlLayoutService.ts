@@ -25,7 +25,7 @@ const nodeHeight = 320;
 const stagePadding = 15; // Padding inside stage group
 const stageHeaderHeight = 40; // Height of stage header
 
-// Layout parameters - aligned with cleaner algorithm from dataflint-engine
+// Layout parameters - aligned with cleaner algorithm from optima-engine
 const NODE_SEP = 10;      // Spacing between nodes (vertical in LR layout)
 const RANK_SEP = 80;     // Spacing between layers (horizontal in LR layout)
 const EDGE_SEP = 80;     // Spacing between edges

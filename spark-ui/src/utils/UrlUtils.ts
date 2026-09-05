@@ -3,8 +3,8 @@ export const isHistoryServer = (): boolean =>
 
 export const isProxyMode = (): boolean =>
   !(
-    window.location.pathname === "/dataflint" ||
-    window.location.pathname === "/dataflint/"
+    window.location.pathname === "/optima" ||
+    window.location.pathname === "/optima/"
   );
 
 export function hrefWithoutEndSlash(): string {
@@ -16,7 +16,7 @@ export function hrefWithoutEndSlash(): string {
     fixedUrl = fixedUrl.substring(0, fixedUrl.length - "index.html".length);
   }
   if (fixedUrl.includes("?o=")) {
-    fixedUrl = fixedUrl.split("dataflint")[0] + "dataflint";
+    fixedUrl = fixedUrl.split("optima")[0] + "optima";
   }
   if (fixedUrl.endsWith("/")) {
     fixedUrl = fixedUrl.substring(0, fixedUrl.length - 1);
@@ -27,9 +27,9 @@ export function hrefWithoutEndSlash(): string {
 export const getProxyBasePath = (): string => {
   if (isHistoryServer()) {
     // in cases where we are in history server mode, the API should be before the last /history part
-    // For example, for: http://localhost:18080/history/<application_id>/dataflint/
+    // For example, for: http://localhost:18080/history/<application_id>/optima/
     // the api is in http://localhost:18080/api/
-    // when the path is https://gateway/sparkhistory/history/<application_id>/1/dataflint/
+    // when the path is https://gateway/sparkhistory/history/<application_id>/1/optima/
     // the api is in https://gateway/sparkhistory/api/
     const url = new URL(window.location.href);
     const pathToBase = url.pathname.match(/^(.*)\/history\//);
@@ -41,14 +41,14 @@ export const getProxyBasePath = (): string => {
     // If the pattern isn't found or pathToBase[1] = '', assume it's in the root
     return "";
   } else {
-    // in cases where we are not in history server mode, the API should be before the last /dataflint part
-    // for example, for: http://localhost:18080/dataflint/
+    // in cases where we are not in history server mode, the API should be before the last /optima part
+    // for example, for: http://localhost:18080/optima/
     // the api is in http://localhost:18080/api
-    // when the path is https://gateway/mysparkapp/dataflint/
+    // when the path is https://gateway/mysparkapp/optima/
     // the api is in https://gateway/mysparkapp/api/
     return hrefWithoutEndSlash().substring(
       0,
-      hrefWithoutEndSlash().lastIndexOf("/dataflint"),
+      hrefWithoutEndSlash().lastIndexOf("/optima"),
     );
   }
 };
@@ -67,5 +67,5 @@ export function getHistoryServerCurrentAppId(): string {
 }
 
 export const getBaseAppUrl = (appPath: string): string => {
-  return appPath.substring(0, hrefWithoutEndSlash().lastIndexOf("/dataflint"));
+  return appPath.substring(0, hrefWithoutEndSlash().lastIndexOf("/optima"));
 };

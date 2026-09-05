@@ -3,10 +3,10 @@ import WarningIcon from "@mui/icons-material/Warning";
 import { Alert, AlertTitle, styled } from "@mui/material";
 import Tooltip, { tooltipClasses, TooltipProps } from "@mui/material/Tooltip";
 import * as React from "react";
-import { Alert as DataflintAlert } from "../../interfaces/AppStore";
+import { Alert as OptimaAlert } from "../../interfaces/AppStore";
 
 type InfoBoxProps = {
-  alert?: DataflintAlert;
+  alert?: OptimaAlert;
   margin?: string;
   placement?:
   | "top"

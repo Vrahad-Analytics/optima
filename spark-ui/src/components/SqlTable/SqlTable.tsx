@@ -76,8 +76,8 @@ const createSqlTableData = (sqls: EnrichedSparkSQL[]): Data[] => {
         description: sql.description,
         duration: sql.duration,
         durationPercentage: sql.resourceMetrics.durationPercentage,
-        dcu: sql.resourceMetrics.dcu,
-        dcuPercentage: sql.resourceMetrics?.dcuPercentage,
+        ocu: sql.resourceMetrics.ocu,
+        ocuPercentage: sql.resourceMetrics?.ocuPercentage,
         idleCoresRate: sql.resourceMetrics.idleCoresRate,
         input: sql.stageMetrics.inputBytes,
         output: sql.stageMetrics.outputBytes,
@@ -367,9 +367,9 @@ export default function SqlTable({
                       {humanizeTimeDiff(duration(sql.duration))} (
                       {sql.durationPercentage.toFixed(1)}%)
                     </StyledTableCell>)}
-                  {visibleColumns.includes("dcu") && (
+                  {visibleColumns.includes("ocu") && (
                     <StyledTableCell align="left">
-                      {sql.dcu.toFixed(4)} ({sql.dcuPercentage.toFixed(1)}
+                      {sql.ocu.toFixed(4)} ({sql.ocuPercentage.toFixed(1)}
                       %)
                     </StyledTableCell>)}
                   {visibleColumns.includes("input") && (
