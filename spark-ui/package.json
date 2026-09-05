@@ -1,0 +1,103 @@
+{
+  "name": "dataflint-ui",
+  "version": "0.9.10",
+  "homepage": "./",
+  "private": true,
+  "dependencies": {
+    "@chatscope/chat-ui-kit-react": "^1.10.1",
+    "@chatscope/chat-ui-kit-styles": "^1.4.0",
+    "@dagrejs/graphlib": "^2.1.13",
+    "@emotion/react": "latest",
+    "@emotion/styled": "latest",
+    "@mui/icons-material": "^5.11.16",
+    "@mui/material": "latest",
+    "@reduxjs/toolkit": "^1.9.7",
+    "@types/bytes": "^3.1.3",
+    "@types/graphlib": "^2.1.8",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "apexcharts": "^3.45.1",
+    "bytes": "^3.1.2",
+    "dagre": "^0.8.5",
+    "distinct-colors": "^3.0.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.0.2",
+    "local-cors-proxy": "latest",
+    "lodash": "^4.17.21",
+    "mixpanel-browser": "^2.47.0",
+    "moment": "^2.29.4",
+    "moment-range": "^4.0.2",
+    "prettier": "^3.0.3",
+    "react": "latest",
+    "react-apexcharts": "^1.4.1",
+    "react-dom": "latest",
+    "react-redux": "^8.1.3",
+    "react-router-dom": "^6.16.0",
+    "react-scripts": "latest",
+    "react-syntax-highlighter": "^15.5.0",
+    "reactflow": "^11.8.3",
+    "redux": "^4.2.1",
+    "redux-thunk": "^2.4.2",
+    "typescript": "latest",
+    "uuid": "^9.0.1"
+  },
+  "scripts": {
+    "start": "REACT_APP_BASE_PATH=http://localhost:8010/proxy PORT=4000 react-scripts start",
+    "start-history": "REACT_APP_BASE_PATH=http://localhost:8011/proxy react-scripts start",
+    "start-tpch": "REACT_APP_BASE_PATH=http://localhost:8012/proxy react-scripts start",
+    "start-win": "set \"REACT_APP_BASE_PATH=http://localhost:10000\" && react-scripts start",
+    "start-win-history": "set \"REACT_APP_BASE_PATH=http://localhost:18080\" && react-scripts start",
+    "start-win-tpch": "set \"REACT_APP_BASE_PATH=http://localhost:4040\" && react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "proxy": "for i in {1..100}; do lcp --proxyUrl http://localhost:10000 && break || sleep 5; done",
+    "proxy-history": "for i in {1..100}; do lcp --proxyUrl http://localhost:18080 --port 8011 && break || sleep 5; done",
+    "proxy-tpch": "for i in {1..100}; do lcp --proxyUrl http://localhost:9000 --port 8012 && break || sleep 5; done",
+    "deploy": "react-scripts build && npx gulp && rm -r ./build/static && mkdir -p ../spark-plugin/plugin/src/main/resources/io/dataflint/spark/static/ui/ && rm -r ../spark-plugin/plugin/src/main/resources/io/dataflint/spark/static/ui/ && mkdir -p ../spark-plugin/plugin/src/main/resources/io/dataflint/spark/static/ui/ && cp -r ./build/* ../spark-plugin/plugin/src/main/resources/io/dataflint/spark/static/ui",
+    "deploy-win": "react-scripts build && xcopy \"./build\" \"../spark-plugin/plugin/src/main/resources/io/dataflint/spark/static/ui\" /s /e /y",
+    "format": "./node_modules/.bin/prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
+    "generate-license-file": "npx generate-license-file --config ./.generatelicensefile.yaml"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@types/dagre": "^0.7.49",
+    "@types/jest": "^29.5.5",
+    "@types/lodash": "^4.14.198",
+    "@types/mixpanel-browser": "^2.47.3",
+    "@types/react-syntax-highlighter": "^15.5.10",
+    "@types/uuid": "^9.0.3",
+    "generate-license-file": "^3.5.1",
+    "license-checker": "^25.0.1",
+    "gulp": "^4.0.2",
+    "gulp-inline-source": "^4.0.0",
+    "gulp-replace": "^1.1.4",
+    "prettier-plugin-organize-imports": "^3.2.3"
+  },
+  "lint-staged": {
+    "src/**/*.{js,jsx,ts,tsx,json,css,scss,md}": [
+      "prettier --write"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "prettier": {
+    "plugins": [
+      "prettier-plugin-organize-imports"
+    ]
+  }
+}

@@ -1,0 +1,1238 @@
+import { Edge, Graph } from "graphlib";
+import { v4 as uuidv4 } from "uuid";
+import {
+  EnrichedSparkSQL,
+  EnrichedSqlEdge,
+  EnrichedSqlMetric,
+  EnrichedSqlNode,
+  ExchangeMetrics,
+  ParsedBatchEvalPythonPlan,
+  ParsedNodePlan,
+  SparkSQLStore,
+  SparkStagesStore,
+} from "../interfaces/AppStore";
+import { RddStorageInfo } from "../interfaces/CachedStorage";
+import { DeltaLakeInfo, DeltaLakeScanInfo } from "../interfaces/DeltaLakeInfo";
+import { IcebergCommitsInfo, IcebergInfo } from "../interfaces/IcebergInfo";
+import { SQLNodePlan, SQLPlan, SQLPlans } from "../interfaces/SQLPlan";
+import { SparkSQL, SparkSQLs, SqlStatus } from "../interfaces/SparkSQLs";
+import { NodesMetrics } from "../interfaces/SqlMetrics";
+import {
+  calculatePercentage,
+  capitalizeWords,
+  timeStrToEpocTime,
+  timeStringToMilliseconds,
+} from "../utils/FormatUtils";
+import { findLastNodeWithInputRows, generateGraph, getRowsFromMetrics } from "./PlanGraphUtils";
+import { parseCoalesce } from "./PlanParsers/CoalesceParser";
+import { parseCollectLimit } from "./PlanParsers/CollectLimitParser";
+import { parseExchange } from "./PlanParsers/ExchangeParser";
+import { parseExpand } from "./PlanParsers/ExpandParser";
+import { parseFilter } from "./PlanParsers/FilterParser";
+import { parseGenerate } from "./PlanParsers/GenerateParser";
+import { parseJDBCScan } from "./PlanParsers/JDBCScanParser";
+import { parseJoin } from "./PlanParsers/JoinParser";
+import { parseProject } from "./PlanParsers/ProjectParser";
+import { parseFileScan } from "./PlanParsers/ScanFileParser";
+import { parseSort } from "./PlanParsers/SortParser";
+import { parseTakeOrderedAndProject } from "./PlanParsers/TakeOrderedAndProjectParser";
+import { parseWindow } from "./PlanParsers/WindowParser";
+import { parseWriteToIceberg } from "./PlanParsers/WriteToIcebergParser";
+import { parseWriteToDelta } from "./PlanParsers/WriteToDeltaParser";
+import { parseWriteToHDFS } from "./PlanParsers/WriteToHDFSParser";
+import { parseBatchEvalPython } from "./PlanParsers/batchEvalPythonParser";
+import { parseHashAggregate } from "./PlanParsers/hashAggregateParser";
+import {
+  calcNodeMetrics,
+  calcNodeType,
+  extractTotalFromStatisticsMetric,
+  findStageIdFromMetrics,
+  isAggregateNode,
+  nodeEnrichedNameBuilder,
+} from "./SqlReducerUtils";
+
+export function cleanUpDAG(
+  edges: EnrichedSqlEdge[],
+  allNodes: EnrichedSqlNode[],
+  visibleNodes: EnrichedSqlNode[],
+): EnrichedSqlEdge[] {
+  var g = generateGraph(edges, allNodes);
+
+  const visibleNodesIds = visibleNodes.map((node) => node.nodeId);
+  const notVisibleNodes = allNodes.filter(
+    (node) => !visibleNodesIds.includes(node.nodeId),
+  );
+
+  notVisibleNodes.forEach((node) => {
+    const nodeId = node.nodeId.toString();
+    const inEdges = g.inEdges(nodeId) as Edge[];
+    if (inEdges === undefined) {
+      return;
+    }
+    const targets = g.outEdges(nodeId) as Edge[];
+    if (targets === undefined || targets.length === 0) {
+      return;
+    }
+    const target = targets[0];
+    inEdges.forEach((inEdge) => g.setEdge(inEdge.v, target.w));
+    g.removeNode(nodeId);
+  });
+
+  const filteredEdges: EnrichedSqlEdge[] = g.edges().map((edge: Edge) => {
+    return { fromId: parseInt(edge.v), toId: parseInt(edge.w) };
+  });
+
+  const removeRedundentEdges = filteredEdges.filter(
+    (edge) =>
+      visibleNodesIds.includes(edge.toId) &&
+      visibleNodesIds.includes(edge.fromId),
+  );
+
+  return removeRedundentEdges;
+}
+
+export function parseNodePlan(
+  node: EnrichedSqlNode,
+  plan: SQLNodePlan,
+): ParsedNodePlan | undefined {
+  try {
+    switch (node.nodeName) {
+      case "PhotonGroupingAgg":
+      case "GpuHashAggregate":
+      case "!CometGpuHashAggregate":
+      case "CometHashAggregate":
+      case "HashAggregate":
+      case "SortAggregate":
+      case "ObjectHashAggregate":
+      case "FlushableHashAggregateExecTransformer":
+      case "RegularHashAggregateExecTransformer":
+        return {
+          type: "HashAggregate",
+          plan: parseHashAggregate(plan.planDescription),
+        };
+
+      case "TakeOrderedAndProject":
+      case "TakeOrderedAndProjectExecTransformer":
+        return {
+          type: "TakeOrderedAndProject",
+          plan: parseTakeOrderedAndProject(plan.planDescription),
+        };
+      case "CollectLimit":
+      case "ColumnarCollectLimit":
+        return {
+          type: "CollectLimit",
+          plan: parseCollectLimit(plan.planDescription),
+        };
+      case "Coalesce":
+      case "CoalesceExecTransformer":
+        return {
+          type: "Coalesce",
+          plan: parseCoalesce(plan.planDescription),
+        };
+      case "OverwritePartitionsDynamic":
+      case "OverwriteByExpression":
+      case "AppendData":
+      case "ReplaceData":
+      case "WriteDelta":
+      case "DeleteFromTable":
+        if (plan.planDescription.includes("IcebergWrite")) {
+          return {
+            type: "WriteToIceberg",
+            plan: parseWriteToIceberg(plan.planDescription),
+          };
+        }
+        break;
+      case "Execute InsertIntoHadoopFsRelationCommand":
+        return {
+          type: "WriteToHDFS",
+          plan: parseWriteToHDFS(plan.planDescription),
+        };
+      case "Execute WriteIntoDeltaCommand":
+        return {
+          type: "WriteToDelta",
+          plan: parseWriteToDelta(plan.planDescription),
+        };
+      case "PhotonFilter":
+      case "GpuFilter":
+      case "CometFilter":
+      case "Filter":
+      case "FilterExecTransformer":
+        return {
+          type: "Filter",
+          plan: parseFilter(plan.planDescription),
+        };
+      case "Exchange":
+      case "CometExchange":
+      case "CometColumnarExchange":
+      case "GpuColumnarExchange":
+      case "ColumnarExchange":
+      case "ColumnarBroadcastExchange":
+        return {
+          type: "Exchange",
+          plan: parseExchange(plan.planDescription),
+        };
+      case "PhotonProject":
+      case "GpuProject":
+      case "CometFilter":
+      case "Project":
+      case "ProjectExecTransformer":
+        return {
+          type: "Project",
+          plan: parseProject(plan.planDescription),
+        };
+      case "GpuSort":
+      case "CometSort":
+      case "Sort":
+      case "SortExecTransformer":
+        return {
+          type: "Sort",
+          plan: parseSort(plan.planDescription),
+        };
+      case "Window":
+      case "ArrowWindowPython":
+      case "WindowInPandas":
+      case "WindowExecTransformer":
+        return {
+          type: "Window",
+          plan: parseWindow(plan.planDescription),
+        };
+      case "BatchEvalPython":
+      case "ArrowEvalPython":
+      case "MapInPandas":
+      case "MapInArrow":
+      case "PythonMapInArrow":
+      case "FlatMapGroupsInPandas":
+      case "FlatMapCoGroupsInPandas":
+        return {
+          type: "BatchEvalPython",
+          plan: parseBatchEvalPython(plan.planDescription),
+        };
+      case "Generate":
+      case "GenerateExecTransformer":
+        return {
+          type: "Generate",
+          plan: parseGenerate(plan.planDescription),
+        };
+      case "Expand":
+      case "ExpandExecTransformer":
+        return {
+          type: "Expand",
+          plan: parseExpand(plan.planDescription),
+        };
+    }
+    if (node.nodeName.includes("Scan")) {
+      // Check if it's a JDBC scan specifically
+      if (node.nodeName.includes("JDBCRelation")) {
+        return {
+          type: "JDBCScan",
+          plan: parseJDBCScan(plan.planDescription, node.nodeName),
+        };
+      }
+      // Otherwise it's a regular file scan
+      return {
+        type: "FileScan",
+        plan: parseFileScan(plan.planDescription, node.nodeName),
+      };
+    }
+    if (node.nodeName.includes("Join")) {
+      return {
+        type: "Join",
+        plan: parseJoin(plan.planDescription),
+      };
+    }
+  } catch (e) {
+    console.log(`failed to parse plan for node type: ${node.nodeName}`, e);
+  }
+  return undefined;
+}
+
+export function getMetricDuration(
+  metricName: string,
+  metrics: EnrichedSqlMetric[],
+): number | undefined {
+  // Use startsWith for efficient matching - Spark metrics often have suffixes like "total (min, med, max )"
+  const durationStr = metrics.find((metric) => metric.name.startsWith(metricName))
+    ?.value;
+  if (durationStr === undefined) {
+    return undefined;
+  }
+  const totalDurationStr = extractTotalFromStatisticsMetric(durationStr);
+  const duration = timeStringToMilliseconds(totalDurationStr);
+  return duration;
+}
+
+/**
+ * When the DataFlint custom plan endpoint returns empty (e.g., for Gluten/Velox or Comet),
+ * fall back to parsing per-node descriptions from the SQL-level planDescription text.
+ * Matches plan sections like "(26) WindowExecTransformer\nArguments: [...]" to SQL nodes by name.
+ */
+function buildFallbackPlanDescriptions(
+  sqlPlanDescription: string,
+  nodes: { nodeId: number; nodeName: string }[],
+): Map<number, string> {
+  const result = new Map<number, string>();
+  if (!sqlPlanDescription) return result;
+
+  const lines = sqlPlanDescription.split("\n");
+  const sections: { name: string; body: string }[] = [];
+  let currentName: string | undefined;
+  let currentBody: string[] = [];
+
+  for (const line of lines) {
+    // Capture the rest of the header line, not just the first token, so node names
+    // with spaces match (e.g. "Scan csv", "WholeStageCodegenTransformer (1)").
+    const headerMatch = line.match(/^\((\d+)\)\s+(.+?)\s*$/);
+    if (headerMatch) {
+      if (currentName !== undefined && currentBody.length > 0) {
+        sections.push({ name: currentName, body: currentBody.join(" ") });
+      }
+      currentName = headerMatch[2];
+      currentBody = [];
+    } else if (currentName !== undefined) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("Arguments:") || trimmed.startsWith("Keys:") || trimmed.startsWith("Functions")) {
+        currentBody.push(trimmed);
+      }
+    }
+  }
+  if (currentName !== undefined && currentBody.length > 0) {
+    sections.push({ name: currentName, body: currentBody.join(" ") });
+  }
+
+  const usedSections = new Set<number>();
+  for (const node of nodes) {
+    for (let i = 0; i < sections.length; i++) {
+      if (usedSections.has(i)) continue;
+      if (sections[i].name === node.nodeName && sections[i].body) {
+        result.set(node.nodeId, `${node.nodeName} ${sections[i].body}`);
+        usedSections.add(i);
+        break;
+      }
+    }
+  }
+
+  return result;
+}
+
+function calculateSql(
+  sql: SparkSQL,
+  plan: SQLPlan | undefined,
+  icebergCommit: IcebergCommitsInfo | undefined,
+  deltaLakeScans: DeltaLakeScanInfo[],
+  stages: SparkStagesStore,
+): EnrichedSparkSQL {
+  const enrichedSql = sql as EnrichedSparkSQL;
+
+  // Capture node count before merge so the incremental update path (case 3) doesn't
+  // see a mismatch between pre-merge API count and post-merge stored count.
+  const originalNumOfNodes = enrichedSql.nodes.length;
+
+  // Merge duplicate nodes from non-transparent TimedExec wrapper (Spark 3.0/3.1).
+  // On legacy Spark, TimedExec uses children=Seq(child) which creates two nodes in the plan:
+  //   "DataFlintFilter" (wrapper with duration metric) ← "Filter" (actual child with plan info)
+  // Strategy: keep the CHILD node (has rich plan description, e.g. filter condition) and
+  // add the wrapper's extra metrics (duration, rddId) to it. Mark as instrumented via nodeName.
+  // Edges: fromId (child/input) → toId (parent/output).
+  const mergedWrapperIds = new Set<number>();
+  for (const node of enrichedSql.nodes) {
+    if (!node.nodeName.startsWith("DataFlint")) continue;
+    const strippedName = node.nodeName.slice("DataFlint".length);
+    // Find the wrapped child: edge where toId === wrapper
+    const childEdges = enrichedSql.edges.filter(e => e.toId === node.nodeId);
+    if (childEdges.length !== 1) continue;
+    const childNode = enrichedSql.nodes.find(n => n.nodeId === childEdges[0].fromId);
+    if (!childNode || childNode.nodeName.replace(/ /g, "") !== strippedName.replace(/ /g, "")) continue;
+    // Keep child, add wrapper's extra metrics, mark as instrumented with DataFlint prefix
+    const childMetricNames = new Set(childNode.metrics.map(m => m.name));
+    const extraMetrics = node.metrics.filter(m => !childMetricNames.has(m.name));
+    childNode.metrics = [...childNode.metrics, ...extraMetrics];
+    childNode.nodeName = "DataFlint" + childNode.nodeName;
+    // Remove wrapper: redirect edges that pointed to wrapper to point to child instead
+    mergedWrapperIds.add(node.nodeId);
+    for (const edge of enrichedSql.edges) {
+      if (edge.fromId === node.nodeId) {
+        edge.fromId = childNode.nodeId;
+      }
+    }
+  }
+  if (mergedWrapperIds.size > 0) {
+    enrichedSql.nodes = enrichedSql.nodes.filter(n => !mergedWrapperIds.has(n.nodeId));
+    enrichedSql.edges = enrichedSql.edges.filter(e => !mergedWrapperIds.has(e.toId));
+  }
+
+  const hasPlanData = plan !== undefined && plan.nodesPlan.length > 0;
+  const fallbackDescs = hasPlanData
+    ? new Map<number, string>()
+    : buildFallbackPlanDescriptions(sql.planDescription, enrichedSql.nodes);
+
+  const typeEnrichedNodes = enrichedSql.nodes.map((node) => {
+    const isInstrumented = node.nodeName.startsWith("DataFlint");
+    const strippedNodeName = isInstrumented ? node.nodeName.slice("DataFlint".length) : node.nodeName;
+    // Replace nodeName with the stripped version so all downstream code sees the base name
+    const normalizedNode = { ...node, nodeName: strippedNodeName };
+    const type = calcNodeType(normalizedNode.nodeName);
+    const rawNodePlan = plan?.nodesPlan.find(
+      (planNode) => planNode.id === normalizedNode.nodeId,
+    );
+    // Strip "DataFlint<NodeName> " prefix from planDescription so parsers see the original format.
+    // Description format: "DataFlint<NodeName> <OriginalNodeName> <rest>", e.g.:
+    //   "DataFlintFilter Filter (cond)" → "Filter (cond)"
+    //   "DataFlintExecute InsertInto... Execute InsertInto... file:..." → "Execute InsertInto... file:..."
+    const nodePlan = rawNodePlan && isInstrumented
+      ? { ...rawNodePlan, planDescription: rawNodePlan.planDescription.replace("DataFlint" + strippedNodeName + " ", "") }
+      : rawNodePlan;
+    let parsedPlan =
+      nodePlan !== undefined ? parseNodePlan(normalizedNode, nodePlan) : undefined;
+
+    if (parsedPlan === undefined) {
+      const fallbackDesc = fallbackDescs.get(normalizedNode.nodeId);
+      if (fallbackDesc) {
+        parsedPlan = parseNodePlan(normalizedNode, { id: normalizedNode.nodeId, planDescription: fallbackDesc, rddScopeId: undefined });
+      }
+    }
+
+    const isCodegenNode = normalizedNode.nodeName.includes("WholeStageCodegen");
+
+    // Find the Delta Lake scan that matches this node's table location
+    // We match by table path and find the scan with the minimum execution ID 
+    // that is still smaller than or equal to the current SQL execution ID
+    let matchingDeltaScan: DeltaLakeScanInfo | undefined = undefined;
+
+    if (parsedPlan && parsedPlan.type === "FileScan" && parsedPlan.plan.Location) {
+      const normalizedNodePath = parsedPlan.plan.Location.replace(/\/$/, "");
+      const currentSqlId = parseInt(sql.id);
+
+      // Find all scans that match the table path and have minExecutionId <= current SQL execution ID
+      const candidateScans = deltaLakeScans.filter((scan) => {
+        const normalizedScanPath = scan.tablePath.replace(/\/$/, "");
+        const pathMatches = normalizedNodePath.includes(normalizedScanPath);
+        const executionIdMatches = scan.minExecutionId <= currentSqlId;
+
+        return pathMatches && executionIdMatches;
+      });
+
+      // Among the candidates, find the one with the maximum minExecutionId (closest to current SQL ID)
+      if (candidateScans.length > 0) {
+        matchingDeltaScan = candidateScans.reduce((prev, current) =>
+          current.minExecutionId > prev.minExecutionId ? current : prev
+        );
+      }
+    }
+
+    return {
+      ...normalizedNode,
+      rddScopeId: nodePlan?.rddScopeId,
+      type: type,
+      parsedPlan: parsedPlan,
+      enrichedName: capitalizeWords(nodeEnrichedNameBuilder(normalizedNode.nodeName, parsedPlan)),
+      isCodegenNode: isCodegenNode,
+      isInstrumented: isInstrumented,
+      wholeStageCodegenId: isCodegenNode
+        ? extractCodegenId()
+        : normalizedNode.wholeStageCodegenId,
+      icebergCommit:
+        type === "output" || enrichedSql.nodes.length === 1
+          ? icebergCommit
+          : undefined,
+      deltaLakeScan: matchingDeltaScan,
+    };
+
+    function extractCodegenId(): number | undefined {
+      return parseInt(
+        normalizedNode.nodeName
+          .replace("WholeStageCodegenTransformer (", "")
+          .replace("WholeStageCodegen (", "")
+          .replace(")", ""),
+      );
+    }
+  });
+
+  // For Gluten/Velox: WholeStageCodegenTransformer nodes are disconnected orphans in the graph
+  // and Spark doesn't set wholeStageCodegenId on their child nodes. Infer it from node ID ordering:
+  // a codegen node at ID X contains the pipeline nodes at IDs X+1, X+2, ... until hitting
+  // a stage boundary (exchange, AQE, scan) or another codegen node.
+  const hasGlutenCodegen = typeEnrichedNodes.some(
+    (n) => n.isCodegenNode && n.nodeName.includes("Transformer"),
+  );
+  if (hasGlutenCodegen) {
+    const stageBoundaryNames = new Set([
+      "ColumnarExchange", "ColumnarBroadcastExchange", "Exchange", "BroadcastExchange",
+      "AQEShuffleRead", "VeloxResizeBatches", "RowToVeloxColumnar", "VeloxColumnarToRow",
+      "ColumnarCollectLimit", "AdaptiveSparkPlan", "ColumnarUnion",
+    ]);
+    const sorted = [...typeEnrichedNodes].sort((a, b) => a.nodeId - b.nodeId);
+    let currentCodegenId: number | undefined = undefined;
+    for (const node of sorted) {
+      if (node.isCodegenNode) {
+        currentCodegenId = node.wholeStageCodegenId;
+      } else if (stageBoundaryNames.has(node.nodeName) || node.nodeName.includes("Scan")) {
+        currentCodegenId = undefined;
+      } else if (
+        currentCodegenId !== undefined &&
+        node.wholeStageCodegenId === undefined
+      ) {
+        node.wholeStageCodegenId = currentCodegenId;
+      }
+    }
+  }
+
+  const onlyCodeGenNodes = typeEnrichedNodes
+    .filter((node) => node.isCodegenNode)
+    .map((node) => {
+      const codegenDuration = calcCodegenDuration(node.metrics);
+      const nodeIdFromMetrics = findStageIdFromMetrics(node.metrics);
+      return { ...node, codegenDuration: codegenDuration, nodeIdFromMetrics: nodeIdFromMetrics };
+    });
+
+  const onlyGraphNodes = typeEnrichedNodes.filter(
+    (node) => !node.isCodegenNode,
+  );
+
+  if (onlyGraphNodes.filter((node) => node.type === "output").length === 0) {
+    const aqeFilteredNodes = onlyGraphNodes.filter(
+      (node) =>
+        node.nodeName !== "AdaptiveSparkPlan" &&
+        node.nodeName !== "ResultQueryStage",
+    );
+    if (aqeFilteredNodes.length > 0) {
+      const lastNode = aqeFilteredNodes[aqeFilteredNodes.length - 1];
+      lastNode.type = "output";
+    }
+  }
+  const graph = generateGraph(enrichedSql.edges, enrichedSql.nodes);
+
+  const metricEnrichedNodes: EnrichedSqlNode[] = onlyGraphNodes.map((node) => {
+    const exchangeMetrics = calcExchangeMetrics(node.nodeName, node.metrics);
+    const exchangeBroadcastDuration = calcBroadcastExchangeDuration(
+      node.nodeName,
+      node.metrics,
+    );
+
+    const nodeIdFromMetrics = findStageIdFromMetrics(node.metrics);
+
+    return {
+      ...node,
+      nodeIdFromMetrics: nodeIdFromMetrics,
+      metrics: updateNodeMetrics(node, node.metrics, graph, onlyGraphNodes),
+      enrichedName: updateNodeEnrichedName(node, onlyGraphNodes, graph),
+      parsedPlan: updateParsedPlan(node, onlyGraphNodes, graph),
+      exchangeMetrics: exchangeMetrics,
+      exchangeBroadcastDuration: exchangeBroadcastDuration,
+    };
+  });
+
+  const ioNodes = onlyGraphNodes.filter(
+    (node) =>
+      node.type === "input" || node.type === "output" || node.type === "join",
+  );
+  const basicNodes = onlyGraphNodes.filter(
+    (node) =>
+      node.type === "input" ||
+      node.type === "output" ||
+      node.type === "join" ||
+      node.type === "transformation",
+  );
+  const advancedNodes = onlyGraphNodes.filter((node) => node.type !== "other");
+  const ioNodesIds = ioNodes.map((node) => node.nodeId);
+  const basicNodesIds = basicNodes.map((node) => node.nodeId);
+  const advancedNodesIds = advancedNodes.map((node) => node.nodeId);
+
+  const basicFilteredEdges = cleanUpDAG(
+    enrichedSql.edges,
+    onlyGraphNodes,
+    basicNodes,
+  );
+
+  const advancedFilteredEdges = cleanUpDAG(
+    enrichedSql.edges,
+    onlyGraphNodes,
+    advancedNodes,
+  );
+
+  const ioFilteredEdges = cleanUpDAG(
+    enrichedSql.edges,
+    onlyGraphNodes,
+    ioNodes,
+  );
+
+  const isSqlCommand =
+    sql.runningJobIds.length === 0 &&
+    sql.failedJobIds.length === 0 &&
+    sql.successJobIds.length === 0;
+
+  return {
+    ...enrichedSql,
+    nodes: metricEnrichedNodes,
+    codegenNodes: onlyCodeGenNodes,
+    filters: {
+      io: {
+        nodesIds: ioNodesIds,
+        edges: ioFilteredEdges,
+      },
+      basic: {
+        nodesIds: basicNodesIds,
+        edges: basicFilteredEdges,
+      },
+      advanced: {
+        nodesIds: advancedNodesIds,
+        edges: advancedFilteredEdges,
+      },
+    },
+    uniqueId: uuidv4(),
+    metricUpdateId: uuidv4(),
+    isSqlCommand: isSqlCommand,
+    originalNumOfNodes: originalNumOfNodes,
+    submissionTimeEpoc: timeStrToEpocTime(sql.submissionTime),
+    rootExecutionId: plan?.rootExecutionId,
+  };
+}
+
+function calculateSqls(
+  sqls: SparkSQLs,
+  plans: SQLPlans,
+  icebergInfo: IcebergInfo,
+  deltaLakeInfo: DeltaLakeInfo,
+  stages: SparkStagesStore,
+): EnrichedSparkSQL[] {
+  return sqls.map((sql) => {
+    const plan = plans.find((plan) => plan.executionId === parseInt(sql.id));
+    const icebergCommit = icebergInfo.commitsInfo.find(
+      (plan) => plan.executionId === parseInt(sql.id),
+    );
+    const deltaLakeScans = deltaLakeInfo.scans.filter(
+      (scan) => scan.minExecutionId <= parseInt(sql.id),
+    );
+    return calculateSql(sql, plan, icebergCommit, deltaLakeScans, stages);
+  });
+}
+
+export function calculateSqlStore(
+  currentStore: SparkSQLStore | undefined,
+  sqls: SparkSQLs,
+  plans: SQLPlans,
+  icebergInfo: IcebergInfo,
+  deltaLakeInfo: DeltaLakeInfo,
+  stages: SparkStagesStore,
+): SparkSQLStore {
+  if (currentStore === undefined) {
+    return { sqls: calculateSqls(sqls, plans, icebergInfo, deltaLakeInfo, stages) };
+  }
+
+  const sqlIds = sqls.map((sql) => parseInt(sql.id));
+  const minId = Math.min(...sqlIds);
+
+  // add existing completed IDs
+  let updatedSqls: EnrichedSparkSQL[] = currentStore.sqls.filter(
+    (sql) => parseInt(sql.id) < minId,
+  );
+
+  for (const id of sqlIds) {
+    const newSql = sqls.find(
+      (existingSql) => parseInt(existingSql.id) === id,
+    ) as SparkSQL;
+    const currentSql = currentStore.sqls.find(
+      (existingSql) => parseInt(existingSql.id) === id,
+    );
+    const plan = plans.find((plan) => plan.executionId === id);
+    const icebergCommit = icebergInfo.commitsInfo.find(
+      (plan) => plan.executionId === id,
+    );
+    const deltaLakeScans = deltaLakeInfo.scans.filter(
+      (scan) => scan.minExecutionId <= id,
+    );
+
+    // case 1: SQL does not exist, we add it
+    if (currentSql === undefined) {
+      updatedSqls.push(calculateSql(newSql, plan, icebergCommit, deltaLakeScans, stages));
+      // From here currentSql must not be null
+      // case 2: plan status changed from running to completed, so we need to update the SQL
+    } else if (
+      newSql.status === SqlStatus.Completed.valueOf() ||
+      newSql.status === SqlStatus.Failed.valueOf()
+    ) {
+      // If plan data is unavailable (offset advanced past this SQL) but we already
+      // have a fully calculated SQL with parsedPlan, preserve it — just update status/duration.
+      // This prevents losing plan descriptions on repeated polls with the non-paginated SQL API.
+      if (plan === undefined && currentSql.nodes.length > 0 && currentSql.nodes.some(n => n.parsedPlan !== undefined)) {
+        updatedSqls.push({
+          ...currentSql,
+          status: newSql.status,
+          duration: newSql.duration,
+          failedJobIds: newSql.failedJobIds,
+          runningJobIds: newSql.runningJobIds,
+          successJobIds: newSql.successJobIds,
+        });
+      } else {
+        updatedSqls.push(calculateSql(newSql, plan, icebergCommit, deltaLakeScans, stages));
+      }
+      // From here newSql.status must be RUNNING
+      // case 3: running SQL structure, so we need to update the plan
+    } else if (currentSql.originalNumOfNodes !== newSql.nodes.length) {
+      updatedSqls.push(calculateSql(newSql, plan, icebergCommit, deltaLakeScans, stages));
+    } else {
+      // case 4: SQL is running, but the structure haven't changed, so we update only relevant fields
+      updatedSqls.push({
+        ...currentSql,
+        duration: newSql.duration,
+        failedJobIds: newSql.failedJobIds,
+        runningJobIds: newSql.runningJobIds,
+        successJobIds: newSql.successJobIds,
+      });
+    }
+  }
+
+  return { sqls: updatedSqls };
+}
+
+export function updateSqlNodeMetrics(
+  currentStore: SparkSQLStore,
+  sqlId: string,
+  sqlMetrics: NodesMetrics,
+  stages: SparkStagesStore,
+): SparkSQLStore {
+  const runningSqls = currentStore.sqls.filter((sql) => sql.id === sqlId);
+  if (runningSqls.length === 0) {
+    // Shouldn't happen as if we ask for updated SQL metric we should have the SQL in store
+    return currentStore;
+  }
+
+  const runningSql = runningSqls[0];
+  const nodes = runningSql.nodes.map((node) => {
+    const matchedMetricsNodes = sqlMetrics.filter(
+      (nodeMetrics) => nodeMetrics.id === node.nodeId,
+    );
+    if (matchedMetricsNodes.length === 0) {
+      return node;
+    }
+
+    // TODO: cache the graph
+    const graph = generateGraph(runningSql.edges, runningSql.nodes);
+    const originalMetrics = matchedMetricsNodes[0].metrics
+      .filter((m): m is { name: string; value: string } => m.value != null); // Backend sends Option[String] → null in JSON for uninitialized metrics
+    const nodeIdFromMetrics = findStageIdFromMetrics(originalMetrics);
+    const metrics = updateNodeMetrics(node, originalMetrics, graph, runningSql.nodes);
+    // Use original metrics for exchange - shuffle write time is filtered out by allowlist
+    const exchangeMetrics = calcExchangeMetrics(node.nodeName, originalMetrics);
+
+    // TODO: maybe do a smarter replacement, or send only the initialized metrics
+    return {
+      ...node,
+      metrics: metrics,
+      nodeIdFromMetrics: nodeIdFromMetrics,
+      exchangeMetrics: exchangeMetrics,
+    };
+  });
+
+  const codegenNodes = runningSql.codegenNodes.map((node) => {
+    const matchedMetricsNodes = sqlMetrics.filter(
+      (nodeMetrics) => nodeMetrics.id === node.nodeId,
+    );
+    if (matchedMetricsNodes.length === 0) {
+      return node;
+    }
+
+    const codegenMetrics = matchedMetricsNodes[0].metrics
+      .filter((m): m is { name: string; value: string } => m.value != null); // Backend sends Option[String] → null in JSON for uninitialized metrics
+    const nodeIdFromMetrics = findStageIdFromMetrics(codegenMetrics);
+    const metrics = calcNodeMetrics(node.type, codegenMetrics);
+    const codegenDuration = calcCodegenDuration(metrics);
+    return {
+      ...node,
+      codegenDuration: codegenDuration,
+      nodeIdFromMetrics: nodeIdFromMetrics,
+    };
+  });
+  const nodesWithStorageInfo = calculateNodeToStorageInfo(stages, nodes);
+  const nodesEnrichedWithStorageInfo = nodes.map(node => {
+    const storageInfo = nodesWithStorageInfo.find((nodeWithStorage) => nodeWithStorage.nodeId === node.nodeId)?.storageInfo;
+    return storageInfo === undefined ? node : {
+      ...node,
+      storageInfo: storageInfo,
+    };
+  })
+
+  const updatedSql = {
+    ...runningSql,
+    nodes: nodesEnrichedWithStorageInfo,
+    codegenNodes: codegenNodes,
+    metricUpdateId: uuidv4(),
+  };
+  const notEffectedSqlsBefore = currentStore.sqls.filter(
+    (sql) => sql.id < sqlId,
+  );
+  const notEffectedSqlsAfter = currentStore.sqls.filter(
+    (sql) => sql.id > sqlId,
+  );
+  return {
+    ...currentStore,
+    sqls: [...notEffectedSqlsBefore, updatedSql, ...notEffectedSqlsAfter],
+  };
+}
+interface NodeStorageInfo {
+  nodeId: number;
+  storageInfo: RddStorageInfo | undefined;
+}
+
+export function calculateNodeToStorageInfo(stages: SparkStagesStore, nodes: EnrichedSqlNode[]): NodeStorageInfo[] {
+  const stagesWithCachesStorage = stages.filter(stage => stage.cachedStorage !== undefined);
+  const nodesWithStorageInfo = stagesWithCachesStorage.flatMap(stage => {
+    const cachedStorage = stage.cachedStorage;
+    const cacheNodes = nodes.filter(node => node.nodeName == "InMemoryTableScan" && node.stage !== undefined && node.stage.type == "onestage" && node.stage.stageId === stage.stageId);
+    if (cachedStorage && cacheNodes.length > 0) {
+      return cacheNodes.map((node, index) => ({
+        nodeId: node.nodeId,
+        storageInfo: index < cachedStorage.length ? cachedStorage[index] : undefined
+      }));
+    } else {
+      return [];
+    }
+  });
+  return nodesWithStorageInfo;
+}
+
+function calcCodegenDuration(metrics: EnrichedSqlMetric[]): number | undefined {
+  return getMetricDuration("duration", metrics);
+}
+
+function calcExchangeMetrics(nodeName: string, metrics: EnrichedSqlMetric[]) {
+  var exchangeMetrics: ExchangeMetrics | undefined = undefined;
+  if (nodeName === "Exchange" || nodeName === "ColumnarExchange" ||
+      nodeName === "CometExchange" || nodeName === "CometColumnarExchange" ||
+      nodeName === "GpuColumnarExchange") {
+    const writeDuration =
+      (getMetricDuration("shuffle write time", metrics) ?? 0) +
+      (getMetricDuration("shuffle wall time", metrics) ?? 0);
+    const readDuration =
+      (getMetricDuration("fetch wait time", metrics) ?? 0) +
+      (getMetricDuration("remote reqs duration", metrics) ?? 0) +
+      (getMetricDuration("remote merged reqs duration", metrics) ?? 0);
+    exchangeMetrics = {
+      writeDuration: writeDuration,
+      readDuration: readDuration,
+      duration: writeDuration + readDuration,
+    };
+  }
+  return exchangeMetrics;
+}
+
+function calcBroadcastExchangeDuration(
+  nodeName: string,
+  metrics: EnrichedSqlMetric[],
+): number | undefined {
+  if (nodeName === "BroadcastExchange" || nodeName === "ColumnarBroadcastExchange") {
+    const duration =
+      (getMetricDuration("time to broadcast", metrics) ?? 0) +
+      (getMetricDuration("time to build", metrics) ?? 0) +
+      (getMetricDuration("time to collect", metrics) ?? 0);
+    return duration;
+  }
+  return undefined;
+}
+
+function updateNodeEnrichedName(
+  node: EnrichedSqlNode,
+  allNodes: EnrichedSqlNode[],
+  graph: Graph): string {
+  if (node.enrichedName === "Distinct") {
+    const nextNodeAfterDistinct = graph.outEdges(node.nodeId.toString());
+    if (!nextNodeAfterDistinct || nextNodeAfterDistinct.length !== 1) {
+      return node.enrichedName;
+    }
+    const nextEdge = nextNodeAfterDistinct[0];
+    const nextNode = allNodes.find((n) => n.nodeId.toString() === nextEdge.w);
+    if (!nextNode || nextNode.nodeName !== "Exchange") {
+      return node.enrichedName;
+    }
+
+    const nextNodeAfterExchange = graph.outEdges(nextNode.nodeId.toString());
+    if (!nextNodeAfterExchange || nextNodeAfterExchange.length !== 1) {
+      return node.enrichedName;
+    }
+    const nextExchangeEdge = nextNodeAfterExchange[0];
+    const nextNodeAfterExchangeNode = allNodes.find((n) => n.nodeId.toString() === nextExchangeEdge.w);
+    if (!nextNodeAfterExchangeNode) {
+      return node.enrichedName;
+    }
+    if (nextNodeAfterExchangeNode.enrichedName === "Distinct") {
+      return "Distinct Within Partition";
+    }
+
+    if (nextNodeAfterExchangeNode.nodeName === "AQEShuffleRead") {
+      const nextNodeAfterRead = graph.outEdges(nextNodeAfterExchangeNode.nodeId.toString());
+      if (!nextNodeAfterRead || nextNodeAfterRead.length !== 1) {
+        return node.enrichedName;
+      }
+      const nextEdge = nextNodeAfterRead[0];
+      const nextNode = allNodes.find((n) => n.nodeId.toString() === nextEdge.w);
+      if (!nextNode || nextNode.enrichedName !== "Distinct") {
+        return node.enrichedName;
+      }
+      return "Distinct Within Partition";
+    }
+
+    return node.enrichedName;
+  }
+  return node.enrichedName;
+}
+
+const PYTHON_EVAL_NODE_NAMES = new Set([
+  "BatchEvalPython",
+  "ArrowEvalPython",
+  "MapInPandas",
+  "MapInArrow",
+  "PythonMapInArrow",
+  "FlatMapGroupsInPandas",
+  "FlatMapCoGroupsInPandas",
+]);
+
+function isPythonEvalNode(nodeName: string): boolean {
+  return PYTHON_EVAL_NODE_NAMES.has(nodeName);
+}
+
+function findBatchEvalPythonInputNode(
+  node: EnrichedSqlNode,
+  allNodes: EnrichedSqlNode[],
+  graph: Graph,
+): EnrichedSqlNode | null {
+  const inputEdges = graph.inEdges(node.nodeId.toString());
+  if (!inputEdges || inputEdges.length !== 1) {
+    return null;
+  }
+  const inputEdge = inputEdges[0];
+  const inputNode = allNodes.find((n) => n.nodeId.toString() === inputEdge.v);
+  if (!inputNode) {
+    return null;
+  }
+
+  // Check if the direct input is a Python evaluation node
+  if (isPythonEvalNode(inputNode.nodeName)) {
+    const inputNodePlan = inputNode.parsedPlan;
+    if (inputNodePlan && inputNodePlan.type === "BatchEvalPython") {
+      return inputNode;
+    }
+  }
+
+  // If the direct input is Filter or Project, check one level deeper
+  if (inputNode.nodeName === "Filter" || inputNode.nodeName === "Project") {
+    const secondLevelInputEdges = graph.inEdges(inputNode.nodeId.toString());
+    if (!secondLevelInputEdges || secondLevelInputEdges.length !== 1) {
+      return null;
+    }
+    const secondLevelInputEdge = secondLevelInputEdges[0];
+    const secondLevelInputNode = allNodes.find((n) => n.nodeId.toString() === secondLevelInputEdge.v);
+    if (!secondLevelInputNode || !isPythonEvalNode(secondLevelInputNode.nodeName)) {
+      return null;
+    }
+    const secondLevelInputNodePlan = secondLevelInputNode.parsedPlan;
+    if (!secondLevelInputNodePlan || secondLevelInputNodePlan.type !== "BatchEvalPython") {
+      return null;
+    }
+    return secondLevelInputNode;
+  }
+
+  return null;
+}
+
+function createUdfToFunctionMap(batchEvalPythonPlan: ParsedBatchEvalPythonPlan): { [key: string]: string } {
+  const udfToFunctionMap: { [key: string]: string } = {};
+  for (let i = 0; i < batchEvalPythonPlan.udfNames.length; i++) {
+    udfToFunctionMap[batchEvalPythonPlan.udfNames[i]] = batchEvalPythonPlan.functionNames[i];
+  }
+  return udfToFunctionMap;
+}
+
+function replaceUdfsInString(text: string, udfToFunctionMap: { [key: string]: string }): string {
+  let result = text;
+  for (const udf in udfToFunctionMap) {
+    result = result.replace(new RegExp(udf, 'g'), udfToFunctionMap[udf]);
+  }
+  return result;
+}
+
+function updateParsedPlan(
+  node: EnrichedSqlNode,
+  allNodes: EnrichedSqlNode[],
+  graph: Graph,
+): ParsedNodePlan | undefined {
+  if (node.nodeName == "Filter" && node.parsedPlan?.type === "Filter") {
+    const batchEvalPythonNode = findBatchEvalPythonInputNode(node, allNodes, graph);
+    if (!batchEvalPythonNode || !batchEvalPythonNode.parsedPlan || batchEvalPythonNode.parsedPlan.type !== "BatchEvalPython") {
+      return node.parsedPlan;
+    }
+
+    const udfToFunctionMap = createUdfToFunctionMap(batchEvalPythonNode.parsedPlan.plan);
+    const condition = node.parsedPlan.plan.condition.replace("(", "").replace(")", "");
+    const updatedCondition = replaceUdfsInString(condition, udfToFunctionMap);
+
+    return {
+      ...node.parsedPlan,
+      plan: {
+        ...node.parsedPlan.plan,
+        condition: updatedCondition
+      }
+    };
+
+  } else if (node.nodeName == "Project" && node.parsedPlan?.type === "Project") {
+    const batchEvalPythonNode = findBatchEvalPythonInputNode(node, allNodes, graph);
+    if (!batchEvalPythonNode || !batchEvalPythonNode.parsedPlan || batchEvalPythonNode.parsedPlan.type !== "BatchEvalPython") {
+      return node.parsedPlan;
+    }
+
+    const udfToFunctionMap = createUdfToFunctionMap(batchEvalPythonNode.parsedPlan.plan);
+    const updatedFields = node.parsedPlan.plan.fields.map(field =>
+      replaceUdfsInString(field, udfToFunctionMap)
+    );
+
+    return {
+      ...node.parsedPlan,
+      plan: {
+        ...node.parsedPlan.plan,
+        fields: updatedFields
+      }
+    };
+  }
+  return node.parsedPlan;
+}
+
+function addGenerateMetrics(
+  node: EnrichedSqlNode,
+  updatedMetrics: EnrichedSqlMetric[],
+  graph: Graph,
+  allNodes: EnrichedSqlNode[],
+): EnrichedSqlMetric | null {
+  if (node.nodeName === "Generate") {
+    const inputNode = findLastNodeWithInputRows(node, graph, allNodes);
+    if (!inputNode) {
+      return null;
+    }
+
+    const inputRows = getRowsFromMetrics(inputNode.metrics);
+    if (inputRows === null || inputRows === 0) {
+      return null;
+    }
+
+    const outputRows = getRowsFromMetrics(updatedMetrics);
+    if (outputRows === null) {
+      return null;
+    }
+
+    const ratio = outputRows / inputRows;
+    const ratioFormatted = ratio.toFixed(2);
+
+    return { name: `${node.enrichedName} Ratio`, value: `${ratioFormatted}X` };
+  }
+  return null;
+}
+
+function addExpandMetrics(
+  node: EnrichedSqlNode,
+  updatedMetrics: EnrichedSqlMetric[],
+  graph: Graph,
+  allNodes: EnrichedSqlNode[],
+): EnrichedSqlMetric | null {
+  if (node.nodeName === "Expand") {
+    const inputNode = findLastNodeWithInputRows(node, graph, allNodes);
+    if (!inputNode) {
+      return null;
+    }
+
+    const inputRows = getRowsFromMetrics(inputNode.metrics);
+    if (inputRows === null || inputRows === 0) {
+      return null;
+    }
+
+    const outputRows = getRowsFromMetrics(updatedMetrics);
+    if (outputRows === null) {
+      return null;
+    }
+
+    const ratio = outputRows / inputRows;
+    const ratioFormatted = ratio.toFixed(2);
+
+    return { name: `Expand Ratio`, value: `${ratioFormatted}X` };
+  }
+  return null;
+}
+
+function updateNodeMetrics(
+  node: EnrichedSqlNode,
+  metrics: EnrichedSqlMetric[],
+  graph: Graph,
+  allNodes: EnrichedSqlNode[],
+): EnrichedSqlMetric[] {
+  const updatedOriginalMetrics = calcNodeMetrics(node.type, metrics);
+  const filterRatio = addFilterRatioMetric(node, updatedOriginalMetrics, graph, allNodes);
+  const crossJoinFilterRatio = addCrossJoinFilterRatioMetric(node, updatedOriginalMetrics, graph, allNodes);
+  const joinMetrics = addJoinMetrics(node, updatedOriginalMetrics, graph, allNodes);
+  const generateMetrics = addGenerateMetrics(node, updatedOriginalMetrics, graph, allNodes);
+  const expandMetrics = addExpandMetrics(node, updatedOriginalMetrics, graph, allNodes);
+  return [
+    ...updatedOriginalMetrics,
+    ...(filterRatio !== null
+      ? [filterRatio]
+      : []),
+    ...(crossJoinFilterRatio !== null
+      ? crossJoinFilterRatio
+      : []),
+    ...(joinMetrics !== null
+      ? joinMetrics
+      : []),
+    ...(generateMetrics !== null
+      ? [generateMetrics]
+      : []),
+    ...(expandMetrics !== null
+      ? [expandMetrics]
+      : []),
+  ];
+}
+
+function addFilterRatioMetric(
+  node: EnrichedSqlNode,
+  updatedMetrics: EnrichedSqlMetric[],
+  graph: Graph,
+  allNodes: EnrichedSqlNode[],
+): EnrichedSqlMetric | null {
+  const isFilter = node.nodeName.includes("Filter");
+  const isDistinct = node.enrichedName === "Distinct";
+  const isAggregate = isAggregateNode(node.nodeName);
+
+  if (isFilter || isAggregate) {
+    let inputRows = 0;
+    const inputNode = findLastNodeWithInputRows(node, graph, allNodes);
+
+    if (inputNode) {
+
+      const foundInputRows = getRowsFromMetrics(inputNode.metrics);
+      if (foundInputRows !== null) {
+        inputRows = foundInputRows;
+      }
+    }
+
+    if (inputRows === 0) {
+      return null;
+    }
+
+    const outputRowsMetric = updatedMetrics.find((m) => m.name.includes("rows"));
+    if (!outputRowsMetric) {
+      return null;
+    }
+
+    const outputRows = parseFloat(outputRowsMetric.value.replace(/,/g, ""));
+    if (isNaN(outputRows)) {
+      return null;
+    }
+
+    const ratio = calculatePercentage(inputRows - outputRows, inputRows);
+    const filteredRows = formatJoinRatioPercentage(ratio)
+
+    const metricName = isAggregate && !isDistinct ? "Rows Aggregated" : "Rows Filtered";
+    return { name: metricName, value: filteredRows.toString() + "%" };
+  }
+  return null;
+}
+
+function addCrossJoinFilterRatioMetric(
+  node: EnrichedSqlNode,
+  updatedMetrics: EnrichedSqlMetric[],
+  graph: Graph,
+  allNodes: EnrichedSqlNode[],
+): EnrichedSqlMetric[] | null {
+  if (node.nodeName === "BroadcastNestedLoopJoin" || node.nodeName === "CartesianProduct") {
+    const inputEdges = graph.inEdges(node.nodeId.toString());
+    if (!inputEdges || inputEdges.length !== 2) {
+      return null;
+    }
+    const inputNodes = inputEdges.map(edge => allNodes.find(n => n.nodeId.toString() === edge.v));
+    const inputNodesRows = inputNodes.map(node => getRowsFromMetrics(node?.metrics)).filter(row => row !== null);
+    if (inputNodesRows.length !== 2) {
+      return null;
+    }
+
+    const crossJoinRows = getRowsFromMetrics(updatedMetrics);
+    if (crossJoinRows === null || inputNodesRows[0] === null || inputNodesRows[1] === null) {
+      return null;
+    }
+    const crossJoinScannedRows = inputNodesRows[0] * inputNodesRows[1];
+    const ratio = 100.0 - calculatePercentage(crossJoinRows, crossJoinScannedRows);
+    const crossJoinFilteredRatio = formatJoinRatioPercentage(ratio)
+    return [
+      { name: "Cross Join Scanned Rows", value: crossJoinScannedRows.toString() },
+      { name: "Rows Filtered", value: crossJoinFilteredRatio.toString() + "%" }
+    ];
+  }
+  return null;
+}
+
+function addJoinMetrics(
+  node: EnrichedSqlNode,
+  updatedMetrics: EnrichedSqlMetric[],
+  graph: Graph,
+  allNodes: EnrichedSqlNode[],
+): EnrichedSqlMetric[] | null {
+  if (node.nodeName === "BroadcastHashJoin" || node.nodeName === "SortMergeJoin" || node.nodeName === "ShuffleHashJoin" || node.nodeName === "ShuffledHashJoin") {
+    const inputEdges = graph.inEdges(node.nodeId.toString());
+    if (!inputEdges || inputEdges.length !== 2) {
+      return null;
+    }
+    const inputRows = inputEdges.map(edge => {
+      const node = allNodes.find(n => n.nodeId.toString() === edge.v)
+      if (node === undefined) {
+        return null;
+      }
+      const nodeWithRows = findLastNodeWithInputRows(node, graph, allNodes);
+      if (nodeWithRows === null) {
+        return null;
+      }
+      const rows = getRowsFromMetrics(nodeWithRows.metrics);
+      if (rows === null) {
+        return null;
+      }
+      return rows
+    }).filter(rows => rows !== null);
+    if (inputRows.length !== 2) {
+      return null;
+    }
+
+    const joinOutputRows = getRowsFromMetrics(updatedMetrics);
+    if (joinOutputRows === null || inputRows[0] === null || inputRows[1] === null) {
+      return null;
+    }
+
+    const maxInputRows = Math.max(inputRows[0], inputRows[1]);
+
+    const joinRatio = maxInputRows !== 0 ? joinOutputRows / maxInputRows : 0
+
+    if (joinRatio > 1) {
+      const joinRatioPercentage = joinRatio.toFixed(1);
+      return [
+        { name: "join rows increase ratio", value: joinRatioPercentage.toString() + "X" },
+      ];
+    } else {
+      const joinRatioPercentage = calculatePercentage(joinOutputRows, maxInputRows)
+      const joinRatioPercentageStr = formatJoinRatioPercentage(joinRatioPercentage);
+      return [
+        { name: "join rows filtered", value: joinRatioPercentageStr.toString() + "%" },
+      ];
+    }
+
+  }
+  return null;
+}
+
+function formatJoinRatioPercentage(percentage: number): string {
+  // Handle near-zero or near-100% cases
+  if (percentage > 0 && percentage < 0.0001) {
+    return "0.0001";
+  }
+  else if (percentage < 0.01 && percentage > 0) {
+    return percentage.toFixed(4);
+  }
+  // Handle near-100% cases
+  else if (percentage > 99.9999 && percentage < 100) {
+    return "99.9999";
+  }
+  else if (percentage > 99 && percentage < 100) {
+    return percentage.toFixed(4);
+  }
+  return percentage.toFixed(1);
+}
