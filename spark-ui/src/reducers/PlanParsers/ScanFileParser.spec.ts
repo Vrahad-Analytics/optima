@@ -63,11 +63,11 @@ describe("parseFileScan", () => {
     },
     {
       input:
-        "FileScan text [value#0] Batched: false, DataFilters: [(length(trim(value#0, None)) > 0)], Format: Text, Location: InMemoryFileIndex(1 paths)[file:/Users/menishmueli/Documents/GitHub/dataflint/spark/spark-plugin/..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<value:string>",
+        "FileScan text [value#0] Batched: false, DataFilters: [(length(trim(value#0, None)) > 0)], Format: Text, Location: InMemoryFileIndex(1 paths)[file:/Users/menishmueli/Documents/GitHub/optima/spark/spark-plugin/..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<value:string>",
       nodeName: "Scan Text",
       expected: {
         Location:
-          "file:/Users/menishmueli/Documents/GitHub/dataflint/spark/spark-plugin/...",
+          "file:/Users/menishmueli/Documents/GitHub/optima/spark/spark-plugin/...",
         PartitionFilters: [],
         PushedFilters: [],
         ReadSchema: {
@@ -79,11 +79,11 @@ describe("parseFileScan", () => {
     },
     {
       input:
-        "FileScan text [value#0] Batched: false, DataFilters: [(length(trim(value#0, None)) > 0)], Format: Text, Location: InMemoryFileIndex(1 paths)[file:/Users/menishmueli/Documents/GitHub/dataflint/spark/spark-plugin/..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<value:string,sds...>",
+        "FileScan text [value#0] Batched: false, DataFilters: [(length(trim(value#0, None)) > 0)], Format: Text, Location: InMemoryFileIndex(1 paths)[file:/Users/menishmueli/Documents/GitHub/optima/spark/spark-plugin/..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<value:string,sds...>",
       nodeName: "Scan Parquet some.table.name",
       expected: {
         Location:
-          "file:/Users/menishmueli/Documents/GitHub/dataflint/spark/spark-plugin/...",
+          "file:/Users/menishmueli/Documents/GitHub/optima/spark/spark-plugin/...",
         PartitionFilters: [],
         PushedFilters: [],
         ReadSchema: undefined,

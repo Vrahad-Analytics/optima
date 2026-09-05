@@ -6,15 +6,15 @@ services:
       args:
         SPARK_VERSION: ${SPARK_VERSION:-3.5.1}
         SCALA_VERSION: ${SCALA_VERSION:-2.12}
-        DATAFLINT_VERSION: ${DATAFLINT_VERSION:-0.8.3}
+        OPTIMA_VERSION: ${OPTIMA_VERSION:-0.1.0}
         USE_LOCAL_JAR: ${USE_LOCAL_JAR:-true}
         ICEBERG_VERSION: ${ICEBERG_VERSION:-1.7.1}
         BIGQUERY_VERSION: ${BIGQUERY_VERSION:-0.42.0}
         GCP_DATAPROC_VERSION: ${GCP_DATAPROC_VERSION:-4.75.0}
         GCP_STORAGE_VERSION: ${GCP_STORAGE_VERSION:-2.47.0}
         BIGQUERY_METRICS_VERSION: ${BIGQUERY_METRICS_VERSION:-0.44.0}
-    image: dataflint-history-server:${SPARK_VERSION:-3.5.1}
-    container_name: dataflint-history-server
+    image: optima-history-server:${SPARK_VERSION:-3.5.1}
+    container_name: optima-history-server
     ports:
       - "${HISTORY_SERVER_PORT:-18080}:18080"
     volumes:

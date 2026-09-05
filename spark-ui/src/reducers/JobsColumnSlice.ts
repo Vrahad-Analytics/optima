@@ -37,10 +37,10 @@ const initialState: JobsColumnState = {
       initiallyVisible: true,
     },
     {
-      id: "dcu",
+      id: "ocu",
       numeric: false,
       disablePadding: false,
-      label: "DCU",
+      label: "OCU",
       initiallyVisible: true,
     },
     {

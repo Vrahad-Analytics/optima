@@ -1,1 +1,1 @@
-org.apache.spark.deploy.history.DataFlintHistoryServerPlugin
+org.apache.spark.deploy.history.OptimaHistoryServerPlugin

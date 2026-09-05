@@ -1,11 +1,11 @@
-# DataFlint PySpark Testing
+# Optima PySpark Testing
 
-This directory contains PySpark example scripts that demonstrate and test DataFlint instrumentation for `mapInPandas` and `mapInArrow` operations.
+This directory contains PySpark example scripts that demonstrate and test Optima instrumentation for `mapInPandas` and `mapInArrow` operations.
 
 ## Files
 
-### `dataflint_pyspark_example.py`
-Simple example script that runs both `mapInPandas` and `mapInArrow` operations with DataFlint instrumentation enabled.
+### `optima_pyspark_example.py`
+Simple example script that runs both `mapInPandas` and `mapInArrow` operations with Optima instrumentation enabled.
 
 **Features:**
 - Automatically detects Spark version and loads the correct plugin JAR (Spark 3.x or 4.x)
@@ -15,27 +15,27 @@ Simple example script that runs both `mapInPandas` and `mapInArrow` operations w
 **Usage:**
 ```bash
 cd utils
-./run-with-spark.sh 3.3.4 ../pyspark-testing/dataflint_pyspark_example.py
-./run-with-spark.sh 3.5.1 ../pyspark-testing/dataflint_pyspark_example.py
-./run-with-spark.sh 4.0.2 ../pyspark-testing/dataflint_pyspark_example.py  # Requires Java 17+
+./run-with-spark.sh 3.3.4 ../pyspark-testing/optima_pyspark_example.py
+./run-with-spark.sh 3.5.1 ../pyspark-testing/optima_pyspark_example.py
+./run-with-spark.sh 4.0.2 ../pyspark-testing/optima_pyspark_example.py  # Requires Java 17+
 ```
 
-### `dataflint_pyspark_example_test.py`
-Test script that executes the same operations and attempts to validate DataFlint instrumentation.
+### `optima_pyspark_example_test.py`
+Test script that executes the same operations and attempts to validate Optima instrumentation.
 
 **Features:**
 - Executes queries and shows physical plans
-- Attempts to detect DataFlint nodes (with known limitations)
+- Attempts to detect Optima nodes (with known limitations)
 - Provides guidance on verifying instrumentation via Spark UI
 - Exits with success if queries execute successfully
 
 **Important Note:**
-Due to how Spark's columnar transformation rules work, DataFlint nodes may not be visible through Python's `explain()` or `queryExecution()` APIs. They ARE applied at runtime and visible in the Spark UI. The test acknowledges this limitation.
+Due to how Spark's columnar transformation rules work, Optima nodes may not be visible through Python's `explain()` or `queryExecution()` APIs. They ARE applied at runtime and visible in the Spark UI. The test acknowledges this limitation.
 
 **Usage:**
 ```bash
 cd utils
-./run-with-spark.sh 3.3.4 ../pyspark-testing/dataflint_pyspark_example_test.py
+./run-with-spark.sh 3.3.4 ../pyspark-testing/optima_pyspark_example_test.py
 ```
 
 ## Requirements
@@ -53,7 +53,7 @@ The `run-with-spark.sh` script will check Java version and fail with a helpful m
 
 ### Plugin JARs
 The scripts automatically detect the Spark major version and load the appropriate plugin:
-- **Spark 3.x**: `pluginspark3/target/scala-2.12/spark_2.12-0.8.6.jar`
+- **Spark 3.x**: `pluginspark3/target/scala-2.12/optima-spark_2.12-0.1.0.jar`
 - **Spark 4.x**: `pluginspark4/target/scala-2.13/spark_2.13-0.8.6.jar`
 
 Build the required JAR before running:
@@ -65,35 +65,35 @@ sbt pluginspark3/assembly
 sbt pluginspark4/assembly
 ```
 
-## Verifying DataFlint Instrumentation
+## Verifying Optima Instrumentation
 
-To verify that DataFlint instrumentation is working:
+To verify that Optima instrumentation is working:
 
 1. Run one of the example scripts
 2. Open the Spark UI (typically http://localhost:10001)
 3. Go to the **SQL** tab
 4. Click on a completed query
 5. Look for these nodes in the physical plan:
-   - `DataFlintMapInPandasExec` (for mapInPandas)
-   - `DataFlintPythonMapInArrowExec` (for mapInArrow)
-6. Check for the **duration** metric added by DataFlint
+   - `OptimaMapInPandasExec` (for mapInPandas)
+   - `OptimaPythonMapInArrowExec` (for mapInArrow)
+6. Check for the **duration** metric added by Optima
 
-### Why Python API doesn't show DataFlint nodes
+### Why Python API doesn't show Optima nodes
 
-Spark's columnar transformation rules (which DataFlint uses) are applied during the `preColumnarTransitions` phase at execution time. The Python API's `explain()` and `queryExecution()` methods show the plan before these transformations are applied, so DataFlint nodes typically won't appear there. However, they ARE applied during actual execution and are visible in the Spark UI.
+Spark's columnar transformation rules (which Optima uses) are applied during the `preColumnarTransitions` phase at execution time. The Python API's `explain()` and `queryExecution()` methods show the plan before these transformations are applied, so Optima nodes typically won't appear there. However, they ARE applied during actual execution and are visible in the Spark UI.
 
 ## Example Output
 
-When DataFlint instrumentation is working, you'll see nodes like this in the Spark UI:
+When Optima instrumentation is working, you'll see nodes like this in the Spark UI:
 
 ```
-DataFlintMapInPandasExec
+OptimaMapInPandasExec
   duration total (min, med, max (stageId: taskId))
   2.3 s (581 ms, 581 ms, 582 ms (stage 2.0: task 19))
 ```
 
 This shows:
-- The DataFlint instrumented node is being used
+- The Optima instrumented node is being used
 - Custom duration metrics are being collected
 - Detailed timing information per task
 

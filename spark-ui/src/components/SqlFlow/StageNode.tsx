@@ -46,7 +46,7 @@ interface StageNodeProps {
 const StageNodeComponent: FC<StageNodeProps> = ({ data }) => {
   const [searchParams] = useSearchParams();
   const exchangeVariant = data.exchangeVariant;
-  const isDebugMode = localStorage.getItem("DATAFLINT_DEBUG_MODE_VIEW") === "true";
+  const isDebugMode = localStorage.getItem("OPTIMA_DEBUG_MODE_VIEW") === "true";
 
 
 
@@ -313,7 +313,7 @@ const StageNodeComponent: FC<StageNodeProps> = ({ data }) => {
           <NodeTypeIndicator nodeType={data.node.type} nodeName={data.node.nodeName} />
         )}
 
-        {/* Debug button - only visible when DATAFLINT_DEBUG_MODE_VIEW is enabled */}
+        {/* Debug button - only visible when OPTIMA_DEBUG_MODE_VIEW is enabled */}
         {isDebugMode && (
           <Box
             sx={{
@@ -435,7 +435,7 @@ const StageNodeComponent: FC<StageNodeProps> = ({ data }) => {
               </Box>
             )}
             {data.node.isInstrumented && (
-              <Tooltip title="DataFlint Instrumented: precise duration tracking enabled" placement="top">
+              <Tooltip title="Optima Instrumented: precise duration tracking enabled" placement="top">
                 <Box
                   sx={{
                     display: "inline-flex",

@@ -150,8 +150,8 @@ export function calculateSparkExecutorsStatus(
         .map((executor) => executor.totalShuffleWrite)
         .reduce((a, b) => a + b, 0);
 
-  // see documentation about DCU calculation
-  const totalDCU = totalCoreHour * 0.05 + totalMemoryGibHour * 0.005;
+  // see documentation about OCU calculation
+  const totalOCU = totalCoreHour * 0.05 + totalMemoryGibHour * 0.005;
 
   return {
     numOfExecutors,
@@ -159,7 +159,7 @@ export function calculateSparkExecutorsStatus(
     totalDriverMemoryGibHour,
     totalExecutorMemoryGibHour,
     totalMemoryGibHour,
-    totalDCU,
+    totalOCU,
     idleCoresRate,
     maxExecutorMemoryPercentage,
     maxExecutorMemoryBytesString,

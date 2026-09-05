@@ -1,0 +1,12 @@
+Optima by Telemetria
+Copyright 2026 Vrahad Analytics
+
+This product is derived from DataFlint OSS (https://github.com/dataflint/spark),
+Copyright DataFlint and contributors, licensed under the Apache License,
+Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+
+Modifications by Vrahad Analytics include: rebranding to Optima, removal of
+vendor usage telemetry (Mixpanel, Scarf) and the SaaS cloud-export subsystem,
+package namespace changes (io.dataflint -> io.telemetria,
+org.apache.spark.dataflint -> org.apache.spark.optima), and configuration key
+changes (spark.dataflint.* -> spark.optima.*).

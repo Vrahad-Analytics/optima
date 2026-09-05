@@ -2,7 +2,6 @@ import { ApplicationInfo } from "../interfaces/ApplicationInfo";
 import { CachedStorage } from "../interfaces/CachedStorage";
 import { DeltaLakeInfo } from "../interfaces/DeltaLakeInfo";
 import { IcebergInfo } from "../interfaces/IcebergInfo";
-import { MixpanelEvents } from "../interfaces/Mixpanel";
 import { SparkConfiguration } from "../interfaces/SparkConfiguration";
 import { SparkExecutors } from "../interfaces/SparkExecutors";
 import { SparkJobs } from "../interfaces/SparkJobs";
@@ -24,10 +23,6 @@ import {
 } from "../reducers/SparkSlice";
 import { AppDispatch } from "../Store";
 import { humanFileSize, timeStrToEpocTime } from "../utils/FormatUtils";
-import { IS_HISTORY_SERVER_MODE } from "../utils/UrlConsts";
-import { isDataFlintSaaSUI } from "../utils/UrlUtils";
-import { MixpanelService } from "./MixpanelService";
-import { ScarfPixelService } from "./ScarfPixelService";
 
 const POLL_TIME = 1000;
 const SQL_QUERY_LENGTH = 1000;
@@ -171,48 +166,11 @@ class SparkAPI {
     this.applicationsPath = `${this.apiPath}/applications`;
     this.dispatch = dispatch;
     this.historyServerMode = historyServerMode;
-    ScarfPixelService.setDispatch(dispatch);
   }
 
   start(): () => void {
     this.fetchData();
     return () => (this.pollingStopped = true);
-  }
-
-  private getPlatform(config: SparkConfiguration): string {
-    if (isDataFlintSaaSUI()) {
-      return "dataflint_saas";
-    } else if (IS_HISTORY_SERVER_MODE) {
-      return "history_server";
-    }
-    const databricksConf = config.sparkProperties.find(
-      (conf) =>
-        conf.length > 1 &&
-        conf[0] === "spark.databricks.clusterUsageTags.cloudProvider",
-    );
-    if (databricksConf !== undefined) {
-      return "databricks";
-    }
-
-    const masterConfig = config.sparkProperties.find(
-      (conf) => conf.length > 1 && conf[0] === "spark.master",
-    );
-    if (masterConfig === undefined || masterConfig.length !== 2) {
-      return "unknown";
-    }
-
-    const sparkMaster = masterConfig[1];
-    if (sparkMaster.startsWith("local")) {
-      return "local";
-    } else if (sparkMaster.startsWith("spark://")) {
-      return "standalone";
-    } else if (sparkMaster.startsWith("yarn")) {
-      return "yarn";
-    } else if (sparkMaster.startsWith("k8s://")) {
-      return "k8s";
-    }
-
-    return "unknown";
   }
 
   // Fetch data and return null if response matches cache (skip JSON parsing and Redux dispatch)
@@ -272,7 +230,7 @@ class SparkAPI {
       // Check for HTTP 500 error - Spark SQL endpoint unsupported (only for SQL requests)
       if (isSqlRequest && requestContent.status === 500) {
         const versionInfo = this.sparkVersion ? ` (current version: ${this.sparkVersion})` : "";
-        throw new Error(`Spark SQL endpoint returned error, spark version unsupported${versionInfo}. DataFlint supports Spark 3.3 and up.`);
+        throw new Error(`Spark SQL endpoint returned error, spark version unsupported${versionInfo}. Optima supports Spark 3.3 and up.`);
       }
 
       const responseText = await requestContent.text();
@@ -342,26 +300,6 @@ class SparkAPI {
           this.icebergEnabled = true;
         }
 
-        const telemetryConfig = sparkConfiguration.sparkProperties.find(
-          (conf) =>
-            conf.length > 1 && conf[0] === "spark.dataflint.telemetry.enabled",
-        );
-
-        if (telemetryConfig !== undefined && telemetryConfig[1] === "false") {
-          MixpanelService.setMixpanelTelemetryConfigDisabled();
-          ScarfPixelService.setScarfPixelTelemetryConfigDisabled();
-          console.log(
-            "skipping telemetry, spark.dataflint.telemetry.enabled is set to false",
-          );
-        } else {
-          MixpanelService.InitMixpanel();
-          ScarfPixelService.InitScarfPixel();
-          MixpanelService.Track(MixpanelEvents.SparkAppInitilized, {
-            sparkVersion: currentAttempt?.appSparkVersion,
-            duration: currentAttempt?.duration,
-            platform: this.getPlatform(sparkConfiguration),
-          });
-        }
         this.dispatch(
           setInitial({
             config: sparkConfiguration,

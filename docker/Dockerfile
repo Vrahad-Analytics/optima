@@ -1,23 +1,23 @@
-# Spark History Server with DataFlint Plugin
+# Spark History Server with Optima Plugin
 #
 # Build arguments:
 #   SPARK_VERSION - Spark version to use (default: 3.5.1)
 #   SCALA_VERSION - Scala binary version: 2.12 or 2.13 (default: 2.12)
-#   DATAFLINT_VERSION - DataFlint plugin version (default: 0.8.3)
-#   USE_LOCAL_JAR - Use locally built JAR instead of Maven (default: false)
+#   OPTIMA_VERSION - Optima plugin version (default: 0.1.0)
+#   USE_LOCAL_JAR - Use locally built JAR instead of Maven (default: true until io.telemetria artifacts are published)
 #
 # Runtime:
 #   Mount your event log directory to /spark-history
-#   Example: docker run -v /path/to/logs:/spark-history -p 18080:18080 dataflint-history-server
+#   Example: docker run -v /path/to/logs:/spark-history -p 18080:18080 optima-history-server
 #
 # Build examples:
 #   # From Maven (default):
-#   docker build -t dataflint-history-server .
-#   docker build -t dataflint-history-server --build-arg SPARK_VERSION=3.5.3 .
+#   docker build -t optima-history-server .
+#   docker build -t optima-history-server --build-arg SPARK_VERSION=3.5.3 .
 #
 #   # From local JAR (run ./build-jars.sh first):
-#   docker build -t dataflint-history-server --build-arg USE_LOCAL_JAR=true .
-#   docker build -t dataflint-history-server --build-arg USE_LOCAL_JAR=true --build-arg SPARK_VERSION=4.0.0 .
+#   docker build -t optima-history-server --build-arg USE_LOCAL_JAR=true .
+#   docker build -t optima-history-server --build-arg USE_LOCAL_JAR=true --build-arg SPARK_VERSION=4.0.0 .
 
 ARG SPARK_VERSION=3.5.1
 
@@ -26,8 +26,8 @@ FROM apache/spark:${SPARK_VERSION}
 # Re-declare ARGs after FROM to make them available
 ARG SPARK_VERSION=3.5.1
 ARG SCALA_VERSION=2.12
-ARG DATAFLINT_VERSION=0.8.3
-ARG USE_LOCAL_JAR=false
+ARG OPTIMA_VERSION=0.1.0
+ARG USE_LOCAL_JAR=true
 ARG ICEBERG_VERSION=1.7.1
 ARG BIGQUERY_VERSION=0.42.0
 ARG GCP_DATAPROC_VERSION=4.75.0
@@ -35,10 +35,10 @@ ARG GCP_STORAGE_VERSION=2.47.0
 ARG BIGQUERY_METRICS_VERSION=0.44.0
 
 # Labels
-LABEL maintainer="DataFlint"
-LABEL description="Spark History Server with DataFlint plugin and UI"
+LABEL maintainer="Optima"
+LABEL description="Spark History Server with Optima plugin and UI"
 LABEL spark.version="${SPARK_VERSION}"
-LABEL dataflint.version="${DATAFLINT_VERSION}"
+LABEL optima.version="${OPTIMA_VERSION}"
 
 USER root
 
@@ -49,33 +49,33 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy local JARs directory (will be empty if not using local JARs)
-COPY jars/ /tmp/dataflint-jars/
+COPY jars/ /tmp/optima-jars/
 
-# Install DataFlint plugin - either from local JAR or Maven
+# Install Optima plugin - either from local JAR or Maven
 RUN SPARK_MAJOR=$(echo ${SPARK_VERSION} | cut -d. -f1) && \
     if [ "$SPARK_MAJOR" = "4" ]; then \
-        ARTIFACT_NAME="dataflint-spark4"; \
+        ARTIFACT_NAME="optima-spark4"; \
         SCALA_VER="2.13"; \
     else \
-        ARTIFACT_NAME="spark"; \
+        ARTIFACT_NAME="optima-spark"; \
         SCALA_VER="${SCALA_VERSION}"; \
     fi && \
-    JAR_NAME="${ARTIFACT_NAME}_${SCALA_VER}-${DATAFLINT_VERSION}-SNAPSHOT.jar" && \
+    JAR_NAME="${ARTIFACT_NAME}_${SCALA_VER}-${OPTIMA_VERSION}-SNAPSHOT.jar" && \
     if [ "${USE_LOCAL_JAR}" = "true" ]; then \
         echo "Using local JAR: ${JAR_NAME}" && \
-        if [ -f "/tmp/dataflint-jars/${JAR_NAME}" ]; then \
-            cp "/tmp/dataflint-jars/${JAR_NAME}" /opt/spark/jars/dataflint-plugin.jar; \
+        if [ -f "/tmp/optima-jars/${JAR_NAME}" ]; then \
+            cp "/tmp/optima-jars/${JAR_NAME}" /opt/spark/jars/optima-plugin.jar; \
         else \
-            echo "ERROR: Local JAR not found: /tmp/dataflint-jars/${JAR_NAME}" && \
-            echo "Available JARs:" && ls -la /tmp/dataflint-jars/ && \
+            echo "ERROR: Local JAR not found: /tmp/optima-jars/${JAR_NAME}" && \
+            echo "Available JARs:" && ls -la /tmp/optima-jars/ && \
             exit 1; \
         fi; \
     else \
-        echo "Downloading from Maven: io.dataflint:${ARTIFACT_NAME}_${SCALA_VER}:${DATAFLINT_VERSION}" && \
-        curl -fSL -o /opt/spark/jars/dataflint-plugin.jar \
-            "https://repo1.maven.org/maven2/io/dataflint/${ARTIFACT_NAME}_${SCALA_VER}/${DATAFLINT_VERSION}/${ARTIFACT_NAME}_${SCALA_VER}-${DATAFLINT_VERSION}.jar"; \
+        echo "Downloading from Maven: io.telemetria:${ARTIFACT_NAME}_${SCALA_VER}:${OPTIMA_VERSION}" && \
+        curl -fSL -o /opt/spark/jars/optima-plugin.jar \
+            "https://repo1.maven.org/maven2/io/telemetria/${ARTIFACT_NAME}_${SCALA_VER}/${OPTIMA_VERSION}/${ARTIFACT_NAME}_${SCALA_VER}-${OPTIMA_VERSION}.jar"; \
     fi && \
-    rm -rf /tmp/dataflint-jars
+    rm -rf /tmp/optima-jars
 
 # Install Iceberg and BigQuery connector JARs (skipped if not available for this Spark version)
 RUN SPARK_MAJOR=$(echo ${SPARK_VERSION} | cut -d. -f1) && \
@@ -114,7 +114,7 @@ RUN curl -fSL -o /opt/spark/jars/google-cloud-dataproc.jar \
 RUN mkdir -p /spark-history && \
     chown -R spark:spark /spark-history
 
-# Configure Spark defaults for History Server with DataFlint
+# Configure Spark defaults for History Server with Optima
 RUN mkdir -p /opt/spark/conf && \
     touch /opt/spark/conf/spark-defaults.conf && \
     echo "spark.history.fs.logDirectory=/spark-history" >> /opt/spark/conf/spark-defaults.conf && \

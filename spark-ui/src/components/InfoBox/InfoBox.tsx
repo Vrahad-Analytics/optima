@@ -2,7 +2,7 @@ import { Box, Grid, Paper, styled } from "@mui/material";
 import Tooltip, { tooltipClasses, TooltipProps } from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import * as React from "react";
-import { Alert as DataflintAlert } from "../../interfaces/AppStore";
+import { Alert as OptimaAlert } from "../../interfaces/AppStore";
 import AlertBadge from "../AlertBadge/AlertBadge";
 import styles from "./InfoBox.module.css"; // Import css modules stylesheet as styles
 
@@ -12,7 +12,7 @@ type InfoBoxProps = {
   color?: string;
   icon: React.ElementType;
   tooltipContent?: JSX.Element;
-  alert?: DataflintAlert;
+  alert?: OptimaAlert;
 };
 
 const TransperantTooltip = styled(({ className, ...props }: TooltipProps) => (

@@ -4,7 +4,7 @@ import {
   BASE_CURRENT_PAGE,
   IS_HISTORY_SERVER_MODE
 } from "../../utils/UrlConsts";
-import { getBaseAppUrl, getProxyBasePath, isDataFlintSaaSUI } from "../../utils/UrlUtils";
+import { getBaseAppUrl, getProxyBasePath } from "../../utils/UrlUtils";
 
 export default function DrawerFooter({ version }: { version?: string }) {
   const onSparkUiClick = (): void => {
@@ -29,7 +29,7 @@ export default function DrawerFooter({ version }: { version?: string }) {
       <Button onClick={onSparkUiClick} color="inherit">
         To Spark UI
       </Button>
-      {IS_HISTORY_SERVER_MODE && !isDataFlintSaaSUI() ? (
+      {IS_HISTORY_SERVER_MODE ? (
         <Button onClick={onHistoryServerClick} color="inherit">
           To History Server
         </Button>

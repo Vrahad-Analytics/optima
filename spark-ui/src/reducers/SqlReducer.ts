@@ -262,7 +262,7 @@ export function getMetricDuration(
 }
 
 /**
- * When the DataFlint custom plan endpoint returns empty (e.g., for Gluten/Velox or Comet),
+ * When the Optima custom plan endpoint returns empty (e.g., for Gluten/Velox or Comet),
  * fall back to parsing per-node descriptions from the SQL-level planDescription text.
  * Matches plan sections like "(26) WindowExecTransformer\nArguments: [...]" to SQL nodes by name.
  */
@@ -329,24 +329,24 @@ function calculateSql(
 
   // Merge duplicate nodes from non-transparent TimedExec wrapper (Spark 3.0/3.1).
   // On legacy Spark, TimedExec uses children=Seq(child) which creates two nodes in the plan:
-  //   "DataFlintFilter" (wrapper with duration metric) ← "Filter" (actual child with plan info)
+  //   "OptimaFilter" (wrapper with duration metric) ← "Filter" (actual child with plan info)
   // Strategy: keep the CHILD node (has rich plan description, e.g. filter condition) and
   // add the wrapper's extra metrics (duration, rddId) to it. Mark as instrumented via nodeName.
   // Edges: fromId (child/input) → toId (parent/output).
   const mergedWrapperIds = new Set<number>();
   for (const node of enrichedSql.nodes) {
-    if (!node.nodeName.startsWith("DataFlint")) continue;
-    const strippedName = node.nodeName.slice("DataFlint".length);
+    if (!node.nodeName.startsWith("Optima")) continue;
+    const strippedName = node.nodeName.slice("Optima".length);
     // Find the wrapped child: edge where toId === wrapper
     const childEdges = enrichedSql.edges.filter(e => e.toId === node.nodeId);
     if (childEdges.length !== 1) continue;
     const childNode = enrichedSql.nodes.find(n => n.nodeId === childEdges[0].fromId);
     if (!childNode || childNode.nodeName.replace(/ /g, "") !== strippedName.replace(/ /g, "")) continue;
-    // Keep child, add wrapper's extra metrics, mark as instrumented with DataFlint prefix
+    // Keep child, add wrapper's extra metrics, mark as instrumented with Optima prefix
     const childMetricNames = new Set(childNode.metrics.map(m => m.name));
     const extraMetrics = node.metrics.filter(m => !childMetricNames.has(m.name));
     childNode.metrics = [...childNode.metrics, ...extraMetrics];
-    childNode.nodeName = "DataFlint" + childNode.nodeName;
+    childNode.nodeName = "Optima" + childNode.nodeName;
     // Remove wrapper: redirect edges that pointed to wrapper to point to child instead
     mergedWrapperIds.add(node.nodeId);
     for (const edge of enrichedSql.edges) {
@@ -366,20 +366,20 @@ function calculateSql(
     : buildFallbackPlanDescriptions(sql.planDescription, enrichedSql.nodes);
 
   const typeEnrichedNodes = enrichedSql.nodes.map((node) => {
-    const isInstrumented = node.nodeName.startsWith("DataFlint");
-    const strippedNodeName = isInstrumented ? node.nodeName.slice("DataFlint".length) : node.nodeName;
+    const isInstrumented = node.nodeName.startsWith("Optima");
+    const strippedNodeName = isInstrumented ? node.nodeName.slice("Optima".length) : node.nodeName;
     // Replace nodeName with the stripped version so all downstream code sees the base name
     const normalizedNode = { ...node, nodeName: strippedNodeName };
     const type = calcNodeType(normalizedNode.nodeName);
     const rawNodePlan = plan?.nodesPlan.find(
       (planNode) => planNode.id === normalizedNode.nodeId,
     );
-    // Strip "DataFlint<NodeName> " prefix from planDescription so parsers see the original format.
-    // Description format: "DataFlint<NodeName> <OriginalNodeName> <rest>", e.g.:
-    //   "DataFlintFilter Filter (cond)" → "Filter (cond)"
-    //   "DataFlintExecute InsertInto... Execute InsertInto... file:..." → "Execute InsertInto... file:..."
+    // Strip "Optima<NodeName> " prefix from planDescription so parsers see the original format.
+    // Description format: "Optima<NodeName> <OriginalNodeName> <rest>", e.g.:
+    //   "OptimaFilter Filter (cond)" → "Filter (cond)"
+    //   "OptimaExecute InsertInto... Execute InsertInto... file:..." → "Execute InsertInto... file:..."
     const nodePlan = rawNodePlan && isInstrumented
-      ? { ...rawNodePlan, planDescription: rawNodePlan.planDescription.replace("DataFlint" + strippedNodeName + " ", "") }
+      ? { ...rawNodePlan, planDescription: rawNodePlan.planDescription.replace("Optima" + strippedNodeName + " ", "") }
       : rawNodePlan;
     let parsedPlan =
       nodePlan !== undefined ? parseNodePlan(normalizedNode, nodePlan) : undefined;

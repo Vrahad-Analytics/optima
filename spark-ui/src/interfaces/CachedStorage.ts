@@ -1,4 +1,4 @@
-export interface DataflintExecutorStorageInfo {
+export interface OptimaExecutorStorageInfo {
     memoryUsed: number;
     memoryRemaining: number;
     memoryUsagePercentage: number;
@@ -10,7 +10,7 @@ export interface RddStorageInfo {
     diskUsed: number;
     numOfPartitions: number;
     storageLevel: string;
-    maxMemoryExecutorInfo: DataflintExecutorStorageInfo | undefined;
+    maxMemoryExecutorInfo: OptimaExecutorStorageInfo | undefined;
 }
 
 export interface CachedStorage {

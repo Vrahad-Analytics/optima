@@ -5,7 +5,6 @@ import { AppDrawer } from "./components/AppDrawer/AppDrawer";
 import Footer from "./components/Footer";
 import DisconnectedModal from "./components/Modals/DisconnectedModal";
 import Progress from "./components/Progress";
-import { ScarfPixel } from "./components/ScarfPixel";
 import { useAppDispatch, useAppSelector } from "./Hooks";
 import SparkAPI from "./services/SparkApi";
 import { getTabByUrl, Tab, TabToUrl } from "./services/TabsService";
@@ -15,7 +14,7 @@ import {
   IS_HISTORY_SERVER_MODE,
 } from "./utils/UrlConsts";
 
-const DOCUMENT_TITLE_PREFIX = "DataFlint - ";
+const DOCUMENT_TITLE_PREFIX = "Optima - ";
 
 export default function App() {
   const location = useLocation();
@@ -57,7 +56,6 @@ export default function App() {
     <Progress />
   ) : (
     <Box sx={{ display: "flex" }}>
-      <ScarfPixel />
       <DisconnectedModal />
       <AppDrawer
         appBasePath={BASE_CURRENT_PAGE}

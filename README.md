@@ -1,48 +1,29 @@
 <p align="center">
-<img alt="Logo" src="documentation/resources/logo.png" height="300">
+<img alt="Optima logo" src="documentation/resources/logo.png" height="90">
 </p>
 
 <h2 align="center">
- Spark Performance Made Simple
+ Optima by Telemetria — Spark Performance Made Simple
 </h2>
 
 <div align="center">
 
-[![Maven Package](https://img.shields.io/badge/Maven-green)](https://mvnrepository.com/artifact/io.dataflint/spark_2.12)
-[![Slack](https://img.shields.io/badge/Slack-Join%20Us-purple)](https://join.slack.com/t/dataflint/shared_invite/zt-28sr3r3pf-Td_mLx~0Ss6D1t0EJb8CNA)
-[![Test Status](https://github.com/dataflint/spark/actions/workflows/ci.yml/badge.svg)](https://github.com/your_username/your_repo/actions/workflows/tests.yml)
-[![Docs](https://img.shields.io/badge/Docs-Read%20the%20Docs-blue)](https://dataflint.gitbook.io/dataflint-for-spark/)
 ![License](https://img.shields.io/badge/License-Apache%202.0-orange)
-
-If you enjoy DataFlint OSS please give us a ⭐️ and join our [slack community](https://join.slack.com/t/dataflint/shared_invite/zt-28sr3r3pf-Td_mLx~0Ss6D1t0EJb8CNA) for feature requests, support and more!
 
 </div>
 
-## What is DataFlint OSS?
+## What is Optima?
 
-DataFlint OSS is a modern, user-friendly enhancement for Apache Spark that simplifies performance monitoring and debugging. It adds an intuitive tab to the existing Spark Web UI, transforming a powerful but often overwhelming interface into something easy to navigate and understand.
+Optima is a modern, user-friendly enhancement for Apache Spark that simplifies performance monitoring and debugging. It adds an intuitive tab to the existing Spark Web UI, transforming a powerful but often overwhelming interface into something easy to navigate and understand.
 
-**Looking for more?** Our full solution is a Production-aware AI copilot for Apache Spark. Learn more at [dataflint.io](https://www.dataflint.io/).
+Optima is an open-source product by [Vrahad Analytics](https://github.com/Vrahad-Analytics) (Telemetria).
 
-## Why DataFlint OSS?
+## Why Optima?
 
-- **Intuitive Design**: DataFlint OSS's tab in the Spark Web UI presents complex metrics in a clear, easy-to-understand format, making Spark performance accessible to everyone.
-- **Effortless Setup**: Install DataFlint OSS in minutes with just a few lines of code or configuration, without making any changes to your existing Spark environment.
-- **For All Skill Levels**: Whether you're a seasoned data engineer or just starting with Spark, DataFlint OSS provides valuable insights that help you work more effectively.
-
-With DataFlint OSS, spend less time deciphering Spark Web UI and more time deriving value from your data. Make big data work better for you, regardless of your role or experience level with Spark.
-
-
-
-### Usage
-
-After installation, you will see a "DataFlint OSS" tab in the Spark Web UI. Click on it to start using DataFlint OSS.
-
-<img alt="Logo" src="documentation/resources/usage.png">
-
-## Demo ([Full YouTube Walkthrough](https://youtu.be/4d_jBCmodKQ?si=VGwFORzw6Wm4vkDo))
-
-![Demo](documentation/resources/demo.gif)
+- **Intuitive Design**: Optima's tab in the Spark Web UI presents complex metrics in a clear, easy-to-understand format, making Spark performance accessible to everyone.
+- **Effortless Setup**: Install Optima in minutes with just a few lines of code or configuration, without making any changes to your existing Spark environment.
+- **For All Skill Levels**: Whether you're a seasoned data engineer or just starting with Spark, Optima provides valuable insights that help you work more effectively.
+- **No Phone-Home**: Optima contains no usage analytics or external telemetry. Nothing leaves your cluster.
 
 ## Features
 
@@ -51,44 +32,49 @@ After installation, you will see a "DataFlint OSS" tab in the Spark Web UI. Clic
 - 📋 Application Run Summary
 - ⚠️ Performance alerts and suggestions
 - 👀 Identify query failures
-- 🤖 Spark AI Assistant
+- 🤖 Spark AI Assistant (bring your own OpenAI API key)
 
-See [Our Features](https://dataflint.gitbook.io/dataflint-for-spark/overview/our-features) for more information
+### Usage
+
+After installation, you will see an "Optima" tab in the Spark Web UI. Click on it to start using Optima.
 
 ## Installation
 
+> **Note**: The `io.telemetria` artifacts are not yet published to Maven Central. Until the first release is published, build the JARs locally (see [Building from source](#building-from-source)).
+
 ### Scala
 
-Install DataFlint OSS via sbt:
+Install Optima via sbt:
+
 For Spark 3.X:
 ```sbt
-libraryDependencies += "io.dataflint" %% "spark" % "0.9.9"
+libraryDependencies += "io.telemetria" %% "optima-spark" % "0.1.0"
 ```
 
 For Spark 4.X:
 ```sbt
-libraryDependencies += "io.dataflint" %% "dataflint-spark4" % "0.9.9"
+libraryDependencies += "io.telemetria" %% "optima-spark4" % "0.1.0"
 ```
 
-
-Then instruct spark to load the DataFlint OSS plugin:
+Then instruct spark to load the Optima plugin:
 ```scala
 val spark = SparkSession
     .builder()
-    .config("spark.plugins", "io.dataflint.spark.SparkDataflintPlugin")
+    .config("spark.plugins", "io.telemetria.optima.SparkOptimaPlugin")
     ...
     .getOrCreate()
 ```
 
 ### PySpark
+
 Add these 2 configs to your pyspark session builder:
 
 For Spark 3.X:
 ```python
 builder = pyspark.sql.SparkSession.builder
     ...
-    .config("spark.jars.packages", "io.dataflint:spark_2.12:0.9.9") \
-    .config("spark.plugins", "io.dataflint.spark.SparkDataflintPlugin") \
+    .config("spark.jars.packages", "io.telemetria:optima-spark_2.12:0.1.0") \
+    .config("spark.plugins", "io.telemetria.optima.SparkOptimaPlugin") \
     ...
 ```
 
@@ -96,76 +82,79 @@ For Spark 4.X:
 ```python
 builder = pyspark.sql.SparkSession.builder
     ...
-    .config("spark.jars.packages", "io.dataflint:dataflint-spark4_2.13:0.9.9") \
-    .config("spark.plugins", "io.dataflint.spark.SparkDataflintPlugin") \
+    .config("spark.jars.packages", "io.telemetria:optima-spark4_2.13:0.1.0") \
+    .config("spark.plugins", "io.telemetria.optima.SparkOptimaPlugin") \
     ...
 ```
 
 ### Spark Submit
 
-Alternatively, install DataFlint OSS with **no code change** as a spark ivy package by adding these 2 lines to your spark-submit command:
+Alternatively, install Optima with **no code change** as a spark ivy package by adding these 2 lines to your spark-submit command:
 
 ```bash
 spark-submit
---packages io.dataflint:spark_2.12:0.9.9 \
---conf spark.plugins=io.dataflint.spark.SparkDataflintPlugin \
+--packages io.telemetria:optima-spark_2.12:0.1.0 \
+--conf spark.plugins=io.telemetria.optima.SparkOptimaPlugin \
 ...
 ```
 
 For Spark 4.X:
 ```bash
 spark-submit
---packages io.dataflint:dataflint-spark4_2.13:0.9.9 \
---conf spark.plugins=io.dataflint.spark.SparkDataflintPlugin \
+--packages io.telemetria:optima-spark4_2.13:0.1.0 \
+--conf spark.plugins=io.telemetria.optima.SparkOptimaPlugin \
 ...
 ```
 
 ### Additional installation options
 
-* There is also support for scala 2.13, if your spark cluster is using scala 2.13 change package name to io.dataflint:spark_**2.13**:0.9.9
-* For more installation options, including for **python** and **k8s spark-operator**, see [Install on Spark docs](https://dataflint.gitbook.io/dataflint-for-spark/getting-started/install-on-spark)
-* For installing DataFlint OSS in **spark history server** for observability on completed runs see [install on spark history server docs](https://dataflint.gitbook.io/dataflint-for-spark/getting-started/install-on-spark-history-server)
-* For installing DataFlint OSS on **DataBricks** see [install on databricks docs](https://dataflint.gitbook.io/dataflint-for-spark/getting-started/install-on-databricks). Databricks Runtime 17.3+ ships `javax.servlet` instead of `jakarta.servlet`, so use the dedicated shaded artifact `io.dataflint:dataflint-spark4-databricks_2.13` (same plugin class — only the jar coordinate differs).
+* There is also support for scala 2.13, if your spark cluster is using scala 2.13 change package name to io.telemetria:optima-spark_**2.13**:0.1.0
+* For observability on completed runs, install Optima in the **Spark History Server**: set `spark.history.provider=org.apache.spark.deploy.history.FsOptimaHistoryProvider` and add the Optima JAR to the history server classpath (see the `docker/` directory for a ready-made history server image).
+* On **Databricks** Runtime 17.3+, which ships `javax.servlet` instead of `jakarta.servlet`, use the dedicated shaded artifact `io.telemetria:optima-spark4-databricks_2.13` (same plugin class — only the jar coordinate differs).
+
+## Configuration
+
+All configuration keys live under the `spark.optima.*` prefix. Commonly used keys:
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `spark.optima.enabled` | `true` | Master switch for the plugin |
+| `spark.optima.alert.disabled` | unset | Comma-separated list of alerts to suppress |
+| `spark.optima.cacheObservability.enabled` | `true` | Track cached RDD/DataFrame storage |
+| `spark.optima.iceberg.enabled` | `true` | Apache Iceberg observability |
+| `spark.optima.iceberg.autoCatalogDiscovery` | `false` | Auto-register the Iceberg metrics reporter on Iceberg catalogs |
+| `spark.optima.instrument.deltalake.enabled` | `false` | Delta Lake instrumentation |
+| `spark.optima.instrument.spark.enabled` | `false` | SQL-node instrumentation (per-operator durations) |
+
+> Migrating from DataFlint? The config prefix changed from `spark.dataflint.*` to `spark.optima.*`, the plugin class is now `io.telemetria.optima.SparkOptimaPlugin`, and the UI tab is served under `/optima`. Event logs recorded by DataFlint versions will render in the history server without Optima-specific enrichments.
+
+## Building from source
+
+```bash
+# Build the UI and embed it into the plugin resources
+cd spark-ui
+npm install
+npm run deploy
+
+# Build the plugin JARs
+cd ../spark-plugin
+sbt pluginspark3/assembly                       # Spark 3.x (Scala 2.12)
+sbt ++2.13.16 pluginspark3/assembly             # Spark 3.x (Scala 2.13)
+sbt ++2.13.16 pluginspark4/assembly             # Spark 4.x
+sbt ++2.13.16 pluginspark4databricks/assembly   # Spark 4.x on Databricks
+```
 
 ## How it Works
 
-![How it Works](documentation/resources/howitworks.png)
+Optima is installed as a plugin on the spark driver and history server.
 
-DataFlint OSS is installed as a plugin on the spark driver and history server.
-
-The plugin exposes an additional HTTP resoures for additional metrics not available in Spark UI, and a modern SPA web-app that fetches data from spark without the need to refresh the page.
-
-For more information, see [how it works docs](https://dataflint.gitbook.io/dataflint-for-spark/overview/how-it-works)
-
-## Articles
-
-*  [AWS engineering blog post featuring DataFlint - Centralize Apache Spark observability on Amazon EMR on EKS with external Spark History Server](https://aws.amazon.com/blogs/big-data/centralize-apache-spark-observability-on-amazon-emr-on-eks-with-external-spark-history-server/)
-
-*  [Wix engineering blog post featuring DataFlint - How Wix Built the Ultimate Spark-as-a-Service Platform](https://www.wix.engineering/post/how-wix-built-the-ultimate-spark-as-a-service-platform-part1)
-
-*  [Cloudera Community - How to integrated DataFlint in CDP](https://community.cloudera.com/t5/Community-Articles/How-to-integrated-DataFlint-in-CDP/ta-p/383681)
-
-*  [Dataminded engineering blog post featuring DataFlint - Running thousands of Spark applications without losing your cool](https://medium.com/datamindedbe/running-thousands-of-spark-applications-without-losing-your-cool-969208a2d655)
-
-*  [Data Engineering Weekly #156 - Featuring DataFlint](https://www.dataengineeringweekly.com/p/data-engineering-weekly-156)
-
-*  [Medium Blog Post - Fixing small files performance issues in Apache Spark using DataFlint](https://medium.com/@menishmueli/fixing-small-files-performance-issues-in-apache-spark-using-dataflint-49ffe3eb755f)
-
-*  [Medium Blog Post - Are Long Filter Conditions in Apache Spark Leading to Performance Issues?](https://medium.com/@menishmueli/are-long-filter-conditions-in-apache-spark-leading-to-performance-issues-0b5bc6c0f94a)
-
-*  [Medium Blog Post - Optimizing update operations to Apache Iceberg tables using DataFlint](https://medium.com/dev-genius/optimizing-update-operations-to-apache-iceberg-tables-using-dataflint-e4e372e75b8a)
-
-*  [Medium Blog Post - Did you know that your Apache Spark logs might be leaking PIIs?](https://medium.com/system-weakness/did-you-know-that-your-apache-spark-logs-might-be-leaking-piis-06f2a0e8a82c)
-
-*  [Medium Blog Post - Cost vs Speed: measuring Apache Spark performance with DataFlint](https://medium.com/@menishmueli/cost-vs-speed-measuring-apache-spark-performance-with-dataflint-c5f909ebe229)
-
+The plugin exposes additional HTTP resources for metrics not available in the Spark UI, and a modern SPA web-app that fetches data from spark without the need to refresh the page.
 
 ## Compatibility Matrix
 
-DataFlint OSS require spark version 3.2 and up, and supports both scala versions 2.12 or 2.13. 
+Optima requires spark version 3.2 and up, and supports both scala versions 2.12 or 2.13.
 
-
-| Spark Platforms           | DataFlint OSS Realtime  | DataFlint OSS History server |
+| Spark Platforms           | Optima Realtime     | Optima History server    |
 |---------------------------|---------------------|--------------------------|
 | Local                     |       ✅            |           ✅             |
 | Standalone                |       ✅            |           ✅             |
@@ -175,4 +164,8 @@ DataFlint OSS require spark version 3.2 and up, and supports both scala versions
 | HDInsights                |       ✅            |           ❌             |
 | Databricks                |       ✅            |           ❌             |
 
-For more information, see [supported versions docs](https://dataflint.gitbook.io/dataflint-for-spark/overview/supported-versions)
+## License and attribution
+
+Optima is licensed under the [Apache License 2.0](LICENSE).
+
+Optima is derived from [DataFlint OSS](https://github.com/dataflint/spark), an open-source Spark observability plugin licensed under the Apache License 2.0. See [NOTICE](NOTICE) for attribution details. Optima removes all vendor telemetry and cloud-export functionality from the original project.

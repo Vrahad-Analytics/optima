@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-# Run DataFlint Gluten/Velox Example
+# Run Optima Gluten/Velox Example
 #
 # This script:
-#   1. Builds the DataFlint UI and plugin jar
+#   1. Builds the Optima UI and plugin jar
 #   2. Packages the Gluten example app
 #   3. Downloads the Gluten nightly bundle jar (cached)
 #   4. Builds and runs the Docker container
@@ -51,7 +51,7 @@ fi
 GLUTEN_JAR_NAME="gluten-velox-bundle-spark3.5_2.12-${GLUTEN_ARCH}-1.7.0-SNAPSHOT.jar"
 GLUTEN_JAR_URL="https://nightlies.apache.org/gluten/nightly-release-jdk8/${GLUTEN_JAR_NAME}"
 
-echo "=== DataFlint Gluten/Velox Example ==="
+echo "=== Optima Gluten/Velox Example ==="
 echo "Project root:  $PROJECT_ROOT"
 echo "Spark version: $SPARK_VERSION"
 echo "Architecture:  $GLUTEN_ARCH"
@@ -72,9 +72,9 @@ else
 fi
 
 if [ "$SKIP_BUILD" = false ]; then
-  # --- Step 2: Build DataFlint UI ---
+  # --- Step 2: Build Optima UI ---
   echo ""
-  echo "=== Step 2: Building DataFlint UI ==="
+  echo "=== Step 2: Building Optima UI ==="
   cd "$PROJECT_ROOT/spark-ui"
   if [ ! -d "node_modules" ]; then
     echo "Installing npm dependencies..."
@@ -83,9 +83,9 @@ if [ "$SKIP_BUILD" = false ]; then
   echo "Building and deploying UI into plugin resources..."
   npm run deploy
 
-  # --- Step 3: Build DataFlint plugin jar ---
+  # --- Step 3: Build Optima plugin jar ---
   echo ""
-  echo "=== Step 3: Building DataFlint plugin jar ==="
+  echo "=== Step 3: Building Optima plugin jar ==="
   cd "$PROJECT_ROOT/spark-plugin"
   export SBT_OPTS="-Xmx4G -Xss2M -XX:+UseG1GC"
   sbt "pluginspark3/assembly"
@@ -100,17 +100,17 @@ fi
 echo ""
 echo "=== Step 5: Copying jars to Docker context ==="
 
-# DataFlint plugin jar
+# Optima plugin jar
 PLUGIN_JAR=$(find "$PROJECT_ROOT/spark-plugin/pluginspark3/target/scala-${SCALA_VERSION}" -name "spark_${SCALA_VERSION}-*.jar" -type f | head -1)
 if [ -z "$PLUGIN_JAR" ]; then
-  echo "ERROR: DataFlint plugin jar not found. Run without --skip-build first."
+  echo "ERROR: Optima plugin jar not found. Run without --skip-build first."
   exit 1
 fi
-cp "$PLUGIN_JAR" "$JARS_DIR/dataflint-plugin.jar"
-echo "Copied DataFlint plugin: $(basename "$PLUGIN_JAR")"
+cp "$PLUGIN_JAR" "$JARS_DIR/optima-plugin.jar"
+echo "Copied Optima plugin: $(basename "$PLUGIN_JAR")"
 
 # Example jar
-EXAMPLE_JAR=$(ls -t "$PROJECT_ROOT/spark-plugin/example_3_5_1/target/scala-${SCALA_VERSION}"/dataflintsparkexample351_${SCALA_VERSION}-*.jar 2>/dev/null | head -1)
+EXAMPLE_JAR=$(ls -t "$PROJECT_ROOT/spark-plugin/example_3_5_1/target/scala-${SCALA_VERSION}"/optimasparkexample351_${SCALA_VERSION}-*.jar 2>/dev/null | head -1)
 if [ -z "$EXAMPLE_JAR" ]; then
   echo "ERROR: Example jar not found. Run without --skip-build first."
   exit 1

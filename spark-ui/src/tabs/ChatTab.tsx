@@ -27,7 +27,6 @@ import {
   setInputText,
   setIsTyping,
 } from "../reducers/ChatSlice";
-import { MixpanelService } from "../services/MixpanelService";
 
 function formatToJsonKeyValue(sql: SparkSQLStore): string {
   let result = "";
@@ -109,10 +108,6 @@ export default function ChatTab() {
     if (apiKey) {
       dispatch(setApiKey({ apiKey: apiKey }));
     }
-  }, []);
-
-  React.useEffect(() => {
-    MixpanelService.TrackPageView();
   }, []);
 
   const handleSendRequest = async (message: string) => {
