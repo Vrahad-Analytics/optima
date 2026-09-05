@@ -1,14 +1,14 @@
-# Contributing to DataFlint
+# Contributing to Optima
 
 ## Getting started with development
 
 ### Setup
 
 Requirements:
-1. Node v21.5.0
-2. Java 8 or 11
-3. Scala 2.12
-4. SBT 1.3.13
+1. Node v21+
+2. Java 17 (required for Spark 4.x; Spark 3.x also works on Java 8/11)
+3. Scala 2.12 / 2.13
+4. SBT 1.9+
 5. IntelliJ IDEA with Scala and SBT plugins
 6. Visual Studio Code
 
@@ -16,8 +16,8 @@ Requirements:
 
 1. Clone the repository:
    ```
-   git clone https://github.com/dataflint/spark.git
-   cd spark
+   git clone https://github.com/Vrahad-Analytics/optima.git
+   cd optima
    ```
 
 2. Set up the Spark Plugin:
@@ -45,11 +45,11 @@ Requirements:
 
 ### Running the Project
 
-1. Run one of the examples in the `spark-examples-351` project using IntelliJ
+1. Run one of the examples in the `example_3_5_1` project using IntelliJ
 
 2. Access the Spark UI:
    - Browse to `http://localhost:10000`
-   - Open DataFlint successfully
+   - Open the Optima tab
 
 ### Live Frontend Development
 
@@ -64,11 +64,11 @@ For live frontend development, follow these steps:
 
 2. Access the development UI:
    - Browse to `http://localhost:4000`
-   - This should run the DataFlint UI with live reloading
+   - This should run the Optima UI with live reloading
 
 ## Contributing Guidelines
 
 - Please ensure your code follows the project's coding standards
 - Submit pull requests for review
 
-Thank you for contributing to DataFlint!
+Thank you for contributing to Optima!
