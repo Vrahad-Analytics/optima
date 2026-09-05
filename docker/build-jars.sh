@@ -1,14 +1,14 @@
 #!/bin/bash
 set -e
 
-# Build DataFlint JARs for Docker
+# Build Optima JARs for Docker
 # This script builds the UI and plugin JARs locally
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/jars"
 
-echo "=== Building DataFlint JARs ==="
+echo "=== Building Optima JARs ==="
 echo "Project root: $PROJECT_ROOT"
 echo "Output directory: $OUTPUT_DIR"
 
@@ -47,11 +47,11 @@ echo ""
 echo "=== Step 3: Copying JARs ==="
 
 # Spark 3.x JARs
-cp pluginspark3/target/scala-2.12/spark_2.12-*.jar "$OUTPUT_DIR/" 2>/dev/null || echo "No Scala 2.12 JAR found (optional)"
-cp pluginspark3/target/scala-2.13/spark_2.13-*.jar "$OUTPUT_DIR/" 2>/dev/null || echo "No Scala 2.13 JAR found (optional)"
+cp pluginspark3/target/scala-2.12/optima-spark_2.12-*.jar "$OUTPUT_DIR/" 2>/dev/null || echo "No Scala 2.12 JAR found (optional)"
+cp pluginspark3/target/scala-2.13/optima-spark_2.13-*.jar "$OUTPUT_DIR/" 2>/dev/null || echo "No Scala 2.13 JAR found (optional)"
 
 # Spark 4.x JAR
-cp pluginspark4/target/scala-2.13/dataflint-spark4_2.13-*.jar "$OUTPUT_DIR/" 2>/dev/null || echo "No Spark 4.x JAR found (optional)"
+cp pluginspark4/target/scala-2.13/optima-spark4_2.13-*.jar "$OUTPUT_DIR/" 2>/dev/null || echo "No Spark 4.x JAR found (optional)"
 
 echo ""
 echo "=== Build Complete ==="
@@ -60,4 +60,4 @@ ls -la "$OUTPUT_DIR"
 
 echo ""
 echo "To build Docker image with local JARs:"
-echo "  docker build -t dataflint-history-server --build-arg USE_LOCAL_JAR=true ."
+echo "  docker build -t optima-history-server --build-arg USE_LOCAL_JAR=true ."

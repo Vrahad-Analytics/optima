@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile
       args:
         SPARK_VERSION: ${SPARK_VERSION:-3.5.7}
-    image: dataflint-comet-example:${SPARK_VERSION:-3.5.7}
-    container_name: dataflint-comet-example
+    image: optima-comet-example:${SPARK_VERSION:-3.5.7}
+    container_name: optima-comet-example
     ports:
       - "${SPARK_UI_PORT:-10000}:10000"
     volumes:

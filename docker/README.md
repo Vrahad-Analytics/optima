@@ -1,6 +1,6 @@
-# Spark History Server with DataFlint
+# Spark History Server with Optima
 
-Docker image for Apache Spark History Server with the DataFlint plugin and UI pre-installed.
+Docker image for Apache Spark History Server with the Optima plugin and UI pre-installed.
 
 ## Quick Start
 
@@ -8,17 +8,17 @@ Docker image for Apache Spark History Server with the DataFlint plugin and UI pr
 
 ```bash
 # Build the image (downloads JAR from Maven Central)
-docker build -t dataflint-history-server .
+docker build -t optima-history-server .
 
 # Run with your event logs directory
 docker run -d \
   -p 18080:18080 \
   -v /path/to/spark-events:/spark-history:ro \
-  --name dataflint-history-server \
-  dataflint-history-server
+  --name optima-history-server \
+  optima-history-server
 ```
 
-Access the History Server at http://localhost:18080. Click on any application to see the DataFlint tab.
+Access the History Server at http://localhost:18080. Click on any application to see the Optima tab.
 
 ### Using Local JARs (for development)
 
@@ -27,13 +27,13 @@ Access the History Server at http://localhost:18080. Click on any application to
 ./build-jars.sh
 
 # Step 2: Build Docker image with local JAR
-docker build -t dataflint-history-server --build-arg USE_LOCAL_JAR=true .
+docker build -t optima-history-server --build-arg USE_LOCAL_JAR=true .
 
 # Step 3: Run
 docker run -d \
   -p 18080:18080 \
   -v /path/to/spark-events:/spark-history:ro \
-  dataflint-history-server
+  optima-history-server
 ```
 
 ### Using Docker Compose
@@ -52,30 +52,30 @@ docker-compose up -d
 |----------|---------|-------------|
 | `SPARK_VERSION` | `3.5.1` | Apache Spark version |
 | `SCALA_VERSION` | `2.12` | Scala binary version (2.12 or 2.13) |
-| `DATAFLINT_VERSION` | `0.8.3` | DataFlint plugin version |
+| `OPTIMA_VERSION` | `0.8.3` | Optima plugin version |
 | `USE_LOCAL_JAR` | `false` | Use locally built JAR instead of Maven |
 
 ### Examples
 
 ```bash
 # Spark 3.5.3 from Maven
-docker build -t dataflint-hs:3.5.3 --build-arg SPARK_VERSION=3.5.3 .
+docker build -t optima-hs:3.5.3 --build-arg SPARK_VERSION=3.5.3 .
 
 # Spark 3.4.1 with Scala 2.13 from Maven
-docker build -t dataflint-hs:3.4.1 \
+docker build -t optima-hs:3.4.1 \
   --build-arg SPARK_VERSION=3.4.1 \
   --build-arg SCALA_VERSION=2.13 .
 
 # Spark 4.0.0 from Maven (automatically uses Scala 2.13)
-docker build -t dataflint-hs:4.0.0 --build-arg SPARK_VERSION=4.0.0 .
+docker build -t optima-hs:4.0.0 --build-arg SPARK_VERSION=4.0.0 .
 
 # Local JAR for Spark 3.x
 ./build-jars.sh
-docker build -t dataflint-hs:local --build-arg USE_LOCAL_JAR=true .
+docker build -t optima-hs:local --build-arg USE_LOCAL_JAR=true .
 
 # Local JAR for Spark 4.x
 ./build-jars.sh
-docker build -t dataflint-hs:4.0.0-local \
+docker build -t optima-hs:4.0.0-local \
   --build-arg USE_LOCAL_JAR=true \
   --build-arg SPARK_VERSION=4.0.0 .
 ```
@@ -145,19 +145,19 @@ docker run -d \
   -p 18080:18080 \
   -e SPARK_HISTORY_OPTS="-Dspark.history.fs.logDirectory=s3a://bucket/spark-events" \
   -v /path/to/aws-hadoop-jars:/opt/spark/jars/cloud:ro \
-  dataflint-history-server
+  optima-history-server
 ```
 
 ## Troubleshooting
 
 ### No applications showing
 - Verify event logs exist in the mounted directory
-- Check logs: `docker logs dataflint-history-server`
+- Check logs: `docker logs optima-history-server`
 - Ensure event log files are complete (not still being written)
 
-### DataFlint tab not appearing
-- The DataFlint tab appears when you click on a specific application
-- Verify the plugin JAR was downloaded: `docker exec dataflint-history-server ls /opt/spark/jars/dataflint*`
+### Optima tab not appearing
+- The Optima tab appears when you click on a specific application
+- Verify the plugin JAR was downloaded: `docker exec optima-history-server ls /opt/spark/jars/optima*`
 
 ### Local JAR build fails
 - Ensure Node.js 20+ is installed: `node --version`
