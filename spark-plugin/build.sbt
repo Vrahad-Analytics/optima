@@ -1,12 +1,12 @@
 import xerial.sbt.Sonatype._
 import sbtassembly.AssemblyPlugin.autoImport._
 
-lazy val versionNum: String = "0.9.10"
+lazy val versionNum: String = "0.1.0"
 lazy val scala212 = "2.12.20"
 lazy val scala213 = "2.13.16"
 lazy val supportedScalaVersions = List(scala212, scala213)
 
-lazy val dataflint = project
+lazy val optima = project
   .in(file("."))
   .aggregate(
     plugin,
@@ -27,8 +27,8 @@ lazy val dataflint = project
 
 lazy val plugin = (project in file("plugin"))
   .settings(
-    name := "dataflint-common",
-    organization := "io.dataflint",
+    name := "optima-spark-common",
+    organization := "io.telemetria",
     crossScalaVersions := supportedScalaVersions,
     version      := (if (git.gitCurrentTags.value.exists(_.startsWith("v"))) {
       versionNum
@@ -52,8 +52,8 @@ lazy val plugin = (project in file("plugin"))
 lazy val pluginspark3 = (project in file("pluginspark3"))
   .enablePlugins(AssemblyPlugin)
   .settings(
-    name := "spark", // Keep the name as "spark" for compatibility with existing versions
-    organization := "io.dataflint",
+    name := "optima-spark",
+    organization := "io.telemetria",
     crossScalaVersions := supportedScalaVersions,
     version      := (if (git.gitCurrentTags.value.exists(_.startsWith("v"))) {
       versionNum
@@ -121,8 +121,8 @@ lazy val pluginspark3 = (project in file("pluginspark3"))
 lazy val pluginspark4 = (project in file("pluginspark4"))
   .enablePlugins(AssemblyPlugin)
   .settings(
-    name := "dataflint-spark4",
-    organization := "io.dataflint",
+    name := "optima-spark4",
+    organization := "io.telemetria",
     scalaVersion := scala213,
     crossScalaVersions := List(scala213), // Only Scala 2.13 for Spark 4.x
     version      := (if (git.gitCurrentTags.value.exists(_.startsWith("v"))) {
@@ -179,7 +179,7 @@ lazy val pluginspark4 = (project in file("pluginspark4"))
     Test / unmanagedSources ++= {
       val pluginspark3Tests = (pluginspark3 / Test / sourceDirectory).value / "scala"
       Seq(
-        pluginspark3Tests / "org" / "apache" / "spark" / "dataflint" / "DataFlintCodegenFallbackSpec.scala"
+        pluginspark3Tests / "org" / "apache" / "spark" / "optima" / "OptimaCodegenFallbackSpec.scala"
       )
     },
 
@@ -201,8 +201,8 @@ lazy val pluginspark4 = (project in file("pluginspark4"))
 lazy val pluginspark4databricks = (project in file("pluginspark4databricks"))
   .enablePlugins(AssemblyPlugin)
   .settings(
-    name := "dataflint-spark4-databricks",
-    organization := "io.dataflint",
+    name := "optima-spark4-databricks",
+    organization := "io.telemetria",
     scalaVersion := scala213,
     crossScalaVersions := List(scala213), // Only Scala 2.13 for Spark 4.x
     version      := (if (git.gitCurrentTags.value.exists(_.startsWith("v"))) {
@@ -220,11 +220,11 @@ lazy val pluginspark4databricks = (project in file("pluginspark4databricks"))
     Compile / unmanagedSourceDirectories += (plugin / Compile / sourceDirectory).value / "scala",
     Compile / unmanagedResourceDirectories += (plugin / Compile / resourceDirectory).value,
 
-    // Drop the upstream DataflintSparkUILoader so our local copy (which uses
+    // Drop the upstream OptimaSparkUILoader so our local copy (which uses
     // Spark4DatabricksPageFactory) is the one compiled.
     Compile / unmanagedSources / excludeFilter := {
       val upstreamLoader = (pluginspark4 / Compile / sourceDirectory).value /
-        "scala" / "org" / "apache" / "spark" / "dataflint" / "DataflintSparkUILoader.scala"
+        "scala" / "org" / "apache" / "spark" / "optima" / "OptimaSparkUILoader.scala"
       new sbt.io.SimpleFileFilter(_.getCanonicalPath == upstreamLoader.getCanonicalPath)
     },
 
@@ -254,8 +254,8 @@ lazy val pluginspark4databricks = (project in file("pluginspark4databricks"))
 
 lazy val example_3_1_3 = (project in file("example_3_1_3"))
   .settings(
-    name := "DataflintSparkExample313",
-    organization := "io.dataflint",
+    name := "OptimaSparkExample313",
+    organization := "io.telemetria",
     crossScalaVersions := List(scala212),
     libraryDependencies += "org.apache.spark" %% "spark-core" % "3.1.3",
     libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.1.3",
@@ -264,8 +264,8 @@ lazy val example_3_1_3 = (project in file("example_3_1_3"))
 
 lazy val example_3_2_4 = (project in file("example_3_2_4"))
   .settings(
-    name := "DataflintSparkExample324",
-    organization := "io.dataflint",
+    name := "OptimaSparkExample324",
+    organization := "io.telemetria",
     crossScalaVersions := supportedScalaVersions,
     libraryDependencies += "org.apache.spark" %% "spark-core" % "3.2.4",
     libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.2.4",
@@ -274,8 +274,8 @@ lazy val example_3_2_4 = (project in file("example_3_2_4"))
 
 lazy val example_3_3_3 = (project in file("example_3_3_3"))
   .settings(
-    name := "DataflintSparkExample333",
-    organization := "io.dataflint",
+    name := "OptimaSparkExample333",
+    organization := "io.telemetria",
     crossScalaVersions := List(scala212),
     libraryDependencies += "org.apache.spark" %% "spark-core" % "3.3.3",
     libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.3.3",
@@ -286,8 +286,8 @@ lazy val example_3_3_3 = (project in file("example_3_3_3"))
 
 lazy val example_3_4_1 = (project in file("example_3_4_1"))
   .settings(
-    name := "DataflintSparkExample341",
-    organization := "io.dataflint",
+    name := "OptimaSparkExample341",
+    organization := "io.telemetria",
     crossScalaVersions := supportedScalaVersions,
     libraryDependencies += "org.apache.spark" %% "spark-core" % "3.4.1",
     libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.4.1",
@@ -297,8 +297,8 @@ lazy val example_3_4_1 = (project in file("example_3_4_1"))
 
 lazy val example_3_5_1 = (project in file("example_3_5_1"))
   .settings(
-    name := "DataflintSparkExample351",
-    organization := "io.dataflint",
+    name := "OptimaSparkExample351",
+    organization := "io.telemetria",
     crossScalaVersions := supportedScalaVersions,
     libraryDependencies += "org.apache.spark" %% "spark-core" % "3.5.7",
     libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.5.7",
@@ -315,8 +315,8 @@ lazy val example_3_5_1 = (project in file("example_3_5_1"))
 
 lazy val example_3_4_1_remote = (project in file("example_3_4_1_remote"))
   .settings(
-      name := "DataflintSparkExample341Remote",
-      organization := "io.dataflint",
+      name := "OptimaSparkExample341Remote",
+      organization := "io.telemetria",
     crossScalaVersions := supportedScalaVersions,
       libraryDependencies += "org.apache.spark" %% "spark-core" % "3.4.1",
       libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.4.1",
@@ -326,8 +326,8 @@ lazy val example_3_4_1_remote = (project in file("example_3_4_1_remote"))
 
 lazy val example_4_0_1 = (project in file("example_4_0_1"))
   .settings(
-    name := "DataflintSparkExample401",
-    organization := "io.dataflint",
+    name := "OptimaSparkExample401",
+    organization := "io.telemetria",
     scalaVersion := scala213,
     crossScalaVersions := List(scala213), // Only Scala 2.13 for Spark 4.x
     // there is no scala 2.12 version so we need to force 2.13 to make it compile

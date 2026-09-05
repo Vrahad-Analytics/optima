@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Clean and setup script for DataFlint Spark plugin development
+# Clean and setup script for Optima Spark plugin development
 # This resolves cross-version dependency conflicts in IntelliJ IDEA
 
 echo "🧹 Cleaning local ivy cache and build artifacts..."
 
-# Remove all local dataflint artifacts
-rm -rf ~/.ivy2/local/io.dataflint/
+# Remove all local optima artifacts
+rm -rf ~/.ivy2/local/io.telemetria/
 
 # Clean all target directories
 find . -name "target" -type d -exec rm -rf {} + 2>/dev/null || true
@@ -42,7 +42,7 @@ echo "1. Refresh your IntelliJ IDEA project (File -> Reload Gradle Project or si
 echo "2. If you still get conflicts, try: File -> Invalidate Caches and Restart"
 echo ""
 echo "📦 Fat JARs created:"
-echo "- Spark 3.x: pluginspark3/target/scala-2.12/dataflint-spark3_2.12-0.9.10-SNAPSHOT.jar"
-echo "- Spark 4.x: pluginspark4/target/scala-2.13/dataflint-spark4_2.13-0.9.10-SNAPSHOT.jar"
-echo "- Spark 4 (Databricks): pluginspark4databricks/target/scala-2.13/dataflint-spark4-databricks_2.13-0.9.10-SNAPSHOT.jar"
+echo "- Spark 3.x: pluginspark3/target/scala-2.12/optima-spark_2.12-0.1.0-SNAPSHOT.jar"
+echo "- Spark 4.x: pluginspark4/target/scala-2.13/optima-spark4_2.13-0.1.0-SNAPSHOT.jar"
+echo "- Spark 4 (Databricks): pluginspark4databricks/target/scala-2.13/optima-spark4-databricks_2.13-0.1.0-SNAPSHOT.jar"
 

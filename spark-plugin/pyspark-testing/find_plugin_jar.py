@@ -1,5 +1,5 @@
 """
-Locate the DataFlint plugin JAR for the current Spark version.
+Locate the Optima plugin JAR for the current Spark version.
 
 Usage:
     from find_plugin_jar import find_plugin_jar
@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 def find_plugin_jar() -> Path:
-    """Find the DataFlint plugin JAR, supporting both release and SNAPSHOT builds."""
+    """Find the Optima plugin JAR, supporting both release and SNAPSHOT builds."""
     project_root = Path(__file__).resolve().parent.parent
 
     # Detect Spark major version from SPARK_HOME
@@ -27,11 +27,11 @@ def find_plugin_jar() -> Path:
     if spark_major_version == 4:
         module = "pluginspark4"
         scala_dir = "scala-2.13"
-        artifact_prefix = "dataflint-spark4_2.13-"
+        artifact_prefix = "optima-spark4_2.13-"
     else:
         module = "pluginspark3"
         scala_dir = "scala-2.12"
-        artifact_prefix = "spark_2.12-"
+        artifact_prefix = "optima-spark_2.12-"
 
     jar_dir = project_root / module / "target" / scala_dir
 
