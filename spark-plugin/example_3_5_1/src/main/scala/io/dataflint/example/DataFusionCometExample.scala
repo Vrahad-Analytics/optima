@@ -23,7 +23,6 @@ object DataFusionCometExample extends App {
     .config("spark.ui.port", "10000")
     .config("spark.eventLog.enabled", "true")
     .config("spark.eventLog.dir", "/tmp/spark-events")
-    .config("spark.dataflint.telemetry.enabled", value = false)
     .config("spark.dataflint.instrument.spark.enabled", value = true)
     .config("spark.sql.maxMetadataStringLength", "10000")
     .master("local[*]")

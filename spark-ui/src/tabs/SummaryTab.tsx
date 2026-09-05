@@ -7,8 +7,6 @@ import SqlFlow from "../components/SqlFlow/SqlFlow";
 import SqlTable from "../components/SqlTable/SqlTable";
 import SummaryBar from "../components/SummaryBar";
 import { useAppSelector } from "../Hooks";
-import { MixpanelEvents } from "../interfaces/Mixpanel";
-import { MixpanelService } from "../services/MixpanelService";
 import { BASE_CURRENT_PAGE } from "../utils/UrlConsts";
 import { getBaseAppUrl } from "../utils/UrlUtils";
 
@@ -25,10 +23,6 @@ export default function SummaryTab() {
         const selectedIdNum = parseInt(selectedSqlId, 10);
         return sqlIdNum === selectedIdNum;
       });
-
-  React.useEffect(() => {
-    MixpanelService.TrackPageView();
-  }, []);
 
   React.useEffect(() => {
     function handleEscapeKey(event: KeyboardEvent) {
@@ -54,16 +48,6 @@ export default function SummaryTab() {
     const newParams = new URLSearchParams(searchParams);
     newParams.set("sqlid", id);
     setSearchParams(newParams);
-
-    const currentSql = sql?.sqls.find((sql) => sql.id === id);
-
-    MixpanelService.Track(MixpanelEvents.SqlSummarySelected, {
-      sqlId: currentSql?.id,
-      sqluniqueId: currentSql?.uniqueId,
-      sqlStatus: currentSql?.status,
-      sqlSubmissionTime: currentSql?.submissionTime,
-      sqlDuration: currentSql?.duration,
-    });
   };
 
   const onBackClick = () => {

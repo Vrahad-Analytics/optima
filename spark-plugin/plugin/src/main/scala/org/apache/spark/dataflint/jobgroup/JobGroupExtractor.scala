@@ -2,7 +2,6 @@ package org.apache.spark.dataflint.jobgroup
 
 import org.apache.spark.SparkConf
 import org.apache.spark.dataflint.listener.DatabricksAdditionalExecutionWrapper
-import org.apache.spark.dataflint.saas.StageTaskSummary
 import org.apache.spark.executor.ExecutorMetrics
 import org.apache.spark.internal.config.Status.ASYNC_TRACKING_ENABLED
 import org.apache.spark.metrics.ExecutorMetricType

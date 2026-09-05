@@ -9,7 +9,6 @@ object DeltaLakeLiquidClusteringExample extends App {
     .builder()
     .appName("DeltaLakeLiquidClusteringExample")
     .config("spark.plugins", "io.dataflint.spark.SparkDataflintPlugin")
-    .config("spark.dataflint.telemetry.enabled", false)
     .config("spark.dataflint.instrument.deltalake.enabled", true)
     // Optional: Configure z-index field collection and caching behavior
      .config("spark.dataflint.instrument.deltalake.collectZindexFields", true) // default: true

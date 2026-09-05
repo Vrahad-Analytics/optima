@@ -7,7 +7,6 @@ object IcebergExample extends App{
     .builder()
     .appName("Iceberg Example")
     .config("spark.plugins", "io.dataflint.spark.SparkDataflintPlugin")
-    .config("spark.dataflint.telemetry.enabled", false)
     .config("spark.ui.port", "10000")
     .config("spark.sql.maxMetadataStringLength", "10000")
     .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")

@@ -6,13 +6,11 @@ export type DurationMode = "exclusive" | "inclusive";
 export const initialState: {
   sqlMode: GraphFilter;
   selectedStage: SQLNodeStageData | SQLNodeExchangeStageData | undefined;
-  telemetryEnabled: boolean;
   showStages: boolean;
   durationMode: DurationMode;
 } = {
   sqlMode: "advanced",
   selectedStage: undefined,
-  telemetryEnabled: false,
   showStages: true,
   durationMode: "exclusive",
 };
@@ -37,14 +35,6 @@ const generalSlice = createSlice({
     ) => {
       state.selectedStage = action.payload.selectedStage;
     },
-    setTelemetryEnabled: (
-      state,
-      action: PayloadAction<{
-        enabled: boolean;
-      }>,
-    ) => {
-      state.telemetryEnabled = action.payload.enabled;
-    },
     setShowStages: (
       state,
       action: PayloadAction<{
@@ -65,6 +55,6 @@ const generalSlice = createSlice({
 });
 
 // Export the action creators and the reducer
-export const { setSQLMode, setSelectedStage, setTelemetryEnabled, setShowStages, setDurationMode } = generalSlice.actions;
+export const { setSQLMode, setSelectedStage, setShowStages, setDurationMode } = generalSlice.actions;
 
 export default generalSlice.reducer;

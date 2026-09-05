@@ -9,7 +9,6 @@ object ExplodeExample extends App {
     .appName("ExplodeExample")
     .config("spark.plugins", "io.dataflint.spark.SparkDataflintPlugin")
     .config("spark.ui.port", "10000")
-    .config("spark.dataflint.telemetry.enabled", value = false)
     .config("spark.eventLog.enabled", "true")
     .config("spark.sql.maxMetadataStringLength", "10000")
     .master("local[*]")

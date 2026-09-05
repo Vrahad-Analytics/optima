@@ -5,7 +5,6 @@ import org.apache.spark.dataflint.api.DataflintPageFactory
 import org.apache.spark.dataflint.listener.{DataflintDatabricksLiveListener, DataflintEnvironmentInfo, DataflintEnvironmentInfoEvent, DataflintListener, DataflintStore, DeltaLakeInstrumentationListener}
 import org.apache.spark.dataflint.iceberg.ClassLoaderChecker
 import org.apache.spark.dataflint.iceberg.ClassLoaderChecker.isMetricLoaderInRightClassLoader
-import org.apache.spark.dataflint.saas.DataflintRunExporterListener
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.SparkListenerInterface
 import org.apache.spark.sql.SparkSession
@@ -25,21 +24,14 @@ class DataflintSparkUICommonInstaller extends Logging {
       return context.ui.get.webUrl
     }
 
+    val dataflintEnabled = context.conf.getBoolean("spark.dataflint.enabled", true)
+    if (!dataflintEnabled) {
+      logInfo("DataFlint is disabled via spark.dataflint.enabled, skipping installation...")
+      return context.ui.get.webUrl
+    }
+
     val sqlListener = () => context.listenerBus.listeners.toArray().find(_.isInstanceOf[SQLAppStatusListener]).asInstanceOf[Option[SQLAppStatusListener]]
     val dataflintListener = new DataflintListener(context.statusStore.store.asInstanceOf[ElementTrackingStore])
-    val tokenConf = context.conf.getOption("spark.dataflint.token")
-    val dataflintEnabled = context.conf.getBoolean("spark.dataflint.enabled", true)
-    if(tokenConf.isDefined) {
-      if (!tokenConf.get.contains("-")) {
-        logWarning("Dataflint token is not valid, please check your configuration")
-      } else if (!dataflintEnabled) {
-        logWarning("Dataflint is explicitly disabled although token is defined, if you wish to re-enable it please set spark.dataflint.enabled to true")
-      }
-      else {
-        context.listenerBus.addToQueue(new DataflintRunExporterListener(context), "dataflint")
-        logInfo("Added DataflintRunExporterListener to the listener bus")
-      }
-    }
 
     val runtime = Runtime.getRuntime
     val driverXmxBytes = runtime.maxMemory()

@@ -1,7 +1,6 @@
 import {
   getProxyBasePath,
   hrefWithoutEndSlash,
-  isDataFlintSaaSUI,
   isHistoryServer,
   isProxyMode,
 } from "./UrlUtils";
@@ -19,8 +18,6 @@ if (process.env.NODE_ENV === "development") {
   BASE_CURRENT_PAGE = `${BASE_PATH}/dataflint`;
 } else if (isProxyMode()) {
   BASE_PATH = getProxyBasePath();
-} else if (isDataFlintSaaSUI()) {
-  BASE_PATH = "/dataflint-spark-ui";
 }
 
 export { BASE_CURRENT_PAGE, BASE_PATH, IS_HISTORY_SERVER_MODE };

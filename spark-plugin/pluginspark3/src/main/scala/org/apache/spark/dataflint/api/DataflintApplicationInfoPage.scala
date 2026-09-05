@@ -12,11 +12,9 @@ class DataflintApplicationInfoPage(ui: SparkUI, dataflintStore: DataflintStore)
   extends WebUIPage("applicationinfo") with Logging {
   override def renderJson(request: HttpServletRequest) = {
     try {
-      val runIdConfigFromStore = ui.store.environmentInfo().sparkProperties.find(_._1 == "spark.dataflint.runId").map(_._2)
-      val runIdPotentiallyFromConfig = if (runIdConfigFromStore.isEmpty) ui.conf.getOption("spark.dataflint.runId") else runIdConfigFromStore
       val applicationInfo = ui.store.applicationInfo()
       val environmentInfo = dataflintStore.environmentInfo()
-      val dataFlintApplicationInfo = DataFlintApplicationInfo(runIdPotentiallyFromConfig, applicationInfo, environmentInfo)
+      val dataFlintApplicationInfo = DataFlintApplicationInfo(None, applicationInfo, environmentInfo)
       val jsonValue = Extraction.decompose(dataFlintApplicationInfo)(org.json4s.DefaultFormats)
       jsonValue
     }
